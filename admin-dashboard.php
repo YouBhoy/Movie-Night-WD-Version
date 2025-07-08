@@ -1,478 +1,628 @@
 <?php
 require_once 'config.php';
 
-// Strict admin authentication check
+// Check admin authentication
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: admin-login.php');
     exit;
 }
 
 // Check session timeout
-if (!isset($_SESSION['admin_login_time']) || (time() - $_SESSION['admin_login_time']) > SESSION_TIMEOUT) {
-    unset($_SESSION['admin_logged_in']);
-    unset($_SESSION['admin_login_time']);
+if (isset($_SESSION['admin_login_time']) && (time() - $_SESSION['admin_login_time']) > SESSION_TIMEOUT) {
+    session_destroy();
     header('Location: admin-login.php?timeout=1');
     exit;
 }
 
-// Refresh session time on activity
-$_SESSION['admin_login_time'] = time();
-
-// Handle logout
-if (isset($_GET['logout'])) {
-    // Log logout activity
-    $pdo = getDBConnection();
-    $logStmt = $pdo->prepare("
-        INSERT INTO admin_activity_log (admin_user, action, ip_address, user_agent, created_at) 
-        VALUES (?, 'logout', ?, ?, NOW())
-    ");
-    $logStmt->execute([
-        $_SESSION['admin_user'] ?? 'unknown',
-        $_SERVER['REMOTE_ADDR'],
-        $_SERVER['HTTP_USER_AGENT'] ?? ''
-    ]);
-    
-    unset($_SESSION['admin_logged_in']);
-    unset($_SESSION['admin_login_time']);
-    unset($_SESSION['admin_user']);
-    header('Location: admin-login.php');
-    exit;
-}
-
-// Helper function to validate integers
-function validateInteger($value, $min = null, $max = null) {
-    $int = filter_var($value, FILTER_VALIDATE_INT);
-    if ($int === false) {
-        return false;
-    }
-    
-    if ($min !== null && $int < $min) {
-        return false;
-    }
-    
-    if ($max !== null && $int > $max) {
-        return false;
-    }
-    
-    return $int;
-}
-
 $pdo = getDBConnection();
-$message = '';
-$messageType = '';
 
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF validation
+// Handle archive/delete registration
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        $message = "Security validation failed. Please try again.";
+        $message = "Security validation failed.";
         $messageType = "error";
     } else {
-        $action = sanitizeInput($_POST['action'] ?? '');
-        
-        // Log admin activity
-        $logActivity = function($action, $targetType = null, $targetId = null, $details = null) use ($pdo) {
-            $logStmt = $pdo->prepare("
-                INSERT INTO admin_activity_log (admin_user, action, target_type, target_id, details, ip_address, user_agent, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            ");
-            $logStmt->execute([
-                $_SESSION['admin_user'] ?? 'unknown',
-                $action,
-                $targetType,
-                $targetId,
-                $details ? json_encode($details) : null,
-                $_SERVER['REMOTE_ADDR'],
-                $_SERVER['HTTP_USER_AGENT'] ?? ''
-            ]);
-        };
-        
-        switch ($action) {
-            case 'delete_registration':
-                $regId = validateInteger($_POST['reg_id'] ?? 0, 1);
-                
-                if ($regId === false) {
-                    $message = "Invalid registration ID";
-                    $messageType = "error";
-                    break;
-                }
-                
+        if ($_POST['action'] === 'archive_registration') {
+            $regId = filter_var($_POST['registration_id'] ?? '', FILTER_VALIDATE_INT);
+            
+            if ($regId) {
                 try {
                     $pdo->beginTransaction();
                     
-                    // Get registration details for logging
-                    $regStmt = $pdo->prepare("SELECT emp_number, selected_seats, hall_id, shift_id FROM registrations WHERE id = ?");
-                    $regStmt->execute([$regId]);
-                    $registration = $regStmt->fetch();
+                    // Get registration details
+                    $stmt = $pdo->prepare("
+                        SELECT r.*, h.hall_name, s.shift_name 
+                        FROM registrations r
+                        JOIN cinema_halls h ON r.hall_id = h.id
+                        JOIN shifts s ON r.shift_id = s.id
+                        WHERE r.id = ? AND r.status = 'active'
+                    ");
+                    $stmt->execute([$regId]);
+                    $registration = $stmt->fetch();
                     
                     if ($registration) {
-                        // Release seats back to available status
-                        $seats = json_decode($registration['selected_seats'], true);
-                        if (is_array($seats)) {
-                            $seatUpdateStmt = $pdo->prepare("UPDATE seats SET status = 'available', updated_at = NOW() WHERE seat_number = ? AND hall_id = ? AND shift_id = ?");
-                            
-                            foreach ($seats as $seat) {
-                                $seatUpdateStmt->execute([$seat, $registration['hall_id'], $registration['shift_id']]);
+                        // Free up the seats
+                        $selectedSeats = json_decode($registration['selected_seats'], true);
+                        if (is_array($selectedSeats)) {
+                            foreach ($selectedSeats as $seatNumber) {
+                                $seatStmt = $pdo->prepare("
+                                    UPDATE seats 
+                                    SET status = 'available', updated_at = NOW() 
+                                    WHERE hall_id = ? AND shift_id = ? AND seat_number = ?
+                                ");
+                                $seatStmt->execute([$registration['hall_id'], $registration['shift_id'], $seatNumber]);
                             }
                         }
                         
-                        // Delete registration
-                        $deleteStmt = $pdo->prepare("DELETE FROM registrations WHERE id = ?");
-                        $deleteStmt->execute([$regId]);
+                        // Archive registration
+                        $archiveStmt = $pdo->prepare("
+                            UPDATE registrations 
+                            SET status = 'cancelled', updated_at = NOW() 
+                            WHERE id = ?
+                        ");
+                        $archiveStmt->execute([$regId]);
                         
                         $pdo->commit();
-                        
-                        // Log activity
-                        $logActivity('delete_registration', 'registration', $regId, [
-                            'emp_number' => $registration['emp_number'],
-                            'seats_released' => $seats
-                        ]);
-                        
-                        $message = "Registration deleted successfully and seats released ✅";
+                        $message = "Registration archived successfully and seats released.";
                         $messageType = "success";
                     } else {
                         $pdo->rollBack();
-                        $message = "Registration not found";
+                        $message = "Registration not found.";
                         $messageType = "error";
                     }
-                    
                 } catch (Exception $e) {
                     $pdo->rollBack();
-                    $message = "Error deleting registration: " . $e->getMessage();
+                    $message = "Error archiving registration: " . $e->getMessage();
                     $messageType = "error";
-                    error_log("Delete registration error: " . $e->getMessage());
                 }
-                break;
-                
-            case 'update_event_settings':
-                $movieName = sanitizeInput($_POST['movie_name'] ?? '');
-                $movieDate = sanitizeInput($_POST['movie_date'] ?? '');
-                $movieTime = sanitizeInput($_POST['movie_time'] ?? '');
-                $movieLocation = sanitizeInput($_POST['movie_location'] ?? '');
-                $eventDescription = sanitizeInput($_POST['event_description'] ?? '');
-                $registrationEnabled = isset($_POST['registration_enabled']) ? 'true' : 'false';
-                $allowSeatSeparation = isset($_POST['allow_seat_separation']) ? 'true' : 'false';
-                
-                try {
-                    $updateStmt = $pdo->prepare("UPDATE event_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?");
-                    $updateStmt->execute([$movieName, 'movie_name']);
-                    $updateStmt->execute([$movieDate, 'movie_date']);
-                    $updateStmt->execute([$movieTime, 'movie_time']);
-                    $updateStmt->execute([$movieLocation, 'movie_location']);
-                    $updateStmt->execute([$eventDescription, 'event_description']);
-                    $updateStmt->execute([$registrationEnabled, 'registration_enabled']);
-                    $updateStmt->execute([$allowSeatSeparation, 'allow_seat_separation']);
-                    
-                    $logActivity('update_event_settings', 'settings', null, [
-                        'movie_name' => $movieName,
-                        'registration_enabled' => $registrationEnabled,
-                        'allow_seat_separation' => $allowSeatSeparation
-                    ]);
-                    
-                    $message = "Event settings updated successfully ✅";
-                    $messageType = "success";
-                } catch (Exception $e) {
-                    $message = "Error updating settings";
-                    $messageType = "error";
-                    error_log("Settings update error: " . $e->getMessage());
-                }
-                break;
-                
-            case 'update_color_scheme':
-                $primaryColor = sanitizeInput($_POST['primary_color'] ?? '#FFD700');
-                $secondaryColor = sanitizeInput($_POST['secondary_color'] ?? '#2E8BFF');
-                
-                try {
-                    $updateStmt = $pdo->prepare("UPDATE event_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = ?");
-                    $updateStmt->execute([$primaryColor, 'primary_color']);
-                    $updateStmt->execute([$secondaryColor, 'secondary_color']);
-                    
-                    $logActivity('update_color_scheme', 'settings', null, [
-                        'primary_color' => $primaryColor,
-                        'secondary_color' => $secondaryColor
-                    ]);
-                    
-                    $message = "Color scheme updated successfully ✅";
-                    $messageType = "success";
-                } catch (Exception $e) {
-                    $message = "Error updating color scheme";
-                    $messageType = "error";
-                    error_log("Color scheme update error: " . $e->getMessage());
-                }
-                break;
-                
-            case 'update_hall':
-                $hallId = validateInteger($_POST['hall_id'] ?? 0, 1);
-                $hallName = sanitizeInput($_POST['hall_name'] ?? '');
-                $maxAttendees = validateInteger($_POST['max_attendees'] ?? 0, 1, 3); // Enforce max 3
-                
-                if ($hallId === false || !$hallName || $maxAttendees === false) {
-                    $message = "Invalid hall data. Maximum 3 attendees allowed per hall.";
-                    $messageType = "error";
-                    break;
-                }
-                
-                try {
-                    $stmt = $pdo->prepare("UPDATE cinema_halls SET hall_name = ?, max_attendees_per_booking = ?, updated_at = NOW() WHERE id = ?");
-                    $stmt->execute([$hallName, $maxAttendees, $hallId]);
-                    
-                    $logActivity('update_hall', 'hall', $hallId, ['hall_name' => $hallName, 'max_attendees' => $maxAttendees]);
-                    
-                    $message = "Cinema hall updated successfully ✅";
-                    $messageType = "success";
-                } catch (Exception $e) {
-                    $message = "Error updating cinema hall";
-                    $messageType = "error";
-                    error_log("Hall update error: " . $e->getMessage());
-                }
-                break;
-                
-            case 'update_shift':
-                $shiftId = validateInteger($_POST['shift_id'] ?? 0, 1);
-                $shiftName = sanitizeInput($_POST['shift_name'] ?? '');
-                
-                if ($shiftId === false || !$shiftName) {
-                    $message = "Invalid shift data";
-                    $messageType = "error";
-                    break;
-                }
-                
-                try {
-                    $stmt = $pdo->prepare("UPDATE shifts SET shift_name = ?, updated_at = NOW() WHERE id = ?");
-                    $stmt->execute([$shiftName, $shiftId]);
-                    
-                    $logActivity('update_shift', 'shift', $shiftId, ['shift_name' => $shiftName]);
-                    
-                    $message = "Shift updated successfully ✅";
-                    $messageType = "success";
-                } catch (Exception $e) {
-                    $message = "Error updating shift";
-                    $messageType = "error";
-                    error_log("Shift update error: " . $e->getMessage());
-                }
-                break;
-                
-            case 'regenerate_seats':
-                $hallId = validateInteger($_POST['hall_id'] ?? 0, 1);
-                $shiftId = validateInteger($_POST['shift_id'] ?? 0, 1);
-                $rows = validateInteger($_POST['rows'] ?? 0, 1, 20);
-                $seatsPerRow = validateInteger($_POST['seats_per_row'] ?? 0, 1, 50);
-                
-                if ($hallId === false || $shiftId === false || $rows === false || $seatsPerRow === false) {
-                    $message = "Invalid seating configuration";
-                    $messageType = "error";
-                    break;
-                }
-                
-                try {
-                    $pdo->beginTransaction();
-                    
-                    // Delete existing seats for this hall and shift
-                    $deleteStmt = $pdo->prepare("DELETE FROM seats WHERE hall_id = ? AND shift_id = ?");
-                    $deleteStmt->execute([$hallId, $shiftId]);
-                    
-                    // Generate new seats
-                    $insertStmt = $pdo->prepare("
-                        INSERT INTO seats (hall_id, shift_id, seat_number, row_letter, seat_position, status, created_at) 
-                        VALUES (?, ?, ?, ?, ?, 'available', NOW())
-                    ");
-                    
-                    for ($row = 0; $row < $rows; $row++) {
-                        $rowLetter = chr(65 + $row); // A, B, C, etc.
-                        for ($seat = 1; $seat <= $seatsPerRow; $seat++) {
-                            $seatNumber = $rowLetter . $seat;
-                            $insertStmt->execute([$hallId, $shiftId, $seatNumber, $rowLetter, $seat]);
-                        }
-                    }
-                    
-                    // Update seat count in shifts table
-                    $totalSeats = $rows * $seatsPerRow;
-                    $updateShiftStmt = $pdo->prepare("UPDATE shifts SET seat_count = ? WHERE id = ?");
-                    $updateShiftStmt->execute([$totalSeats, $shiftId]);
-                    
-                    $pdo->commit();
-                    
-                    $logActivity('regenerate_seats', 'seating', null, [
-                        'hall_id' => $hallId,
-                        'shift_id' => $shiftId,
-                        'rows' => $rows,
-                        'seats_per_row' => $seatsPerRow,
-                        'total_seats' => $totalSeats
-                    ]);
-                    
-                    $message = "Seating plan regenerated successfully ✅ ($totalSeats seats created)";
-                    $messageType = "success";
-                } catch (Exception $e) {
-                    $pdo->rollBack();
-                    $message = "Error regenerating seats: " . $e->getMessage();
-                    $messageType = "error";
-                    error_log("Seat regeneration error: " . $e->getMessage());
-                }
-                break;
+            }
         }
     }
 }
 
 // Get statistics
-$statsStmt = $pdo->query("
-    SELECT 
-        COUNT(*) as total_registrations,
-        SUM(attendee_count) as total_attendees,
-        (SELECT COUNT(*) FROM seats WHERE status = 'available') as available_seats,
-        (SELECT COUNT(*) FROM seats WHERE status = 'blocked') as blocked_seats,
-        (SELECT COUNT(*) FROM seats WHERE status = 'reserved') as reserved_seats,
-        (SELECT COUNT(*) FROM seats WHERE status = 'occupied') as occupied_seats
-    FROM registrations WHERE status = 'active'
+$stats = [];
+
+// Total registrations
+$stmt = $pdo->prepare("SELECT COUNT(*) as total FROM registrations WHERE status = 'active'");
+$stmt->execute();
+$stats['total_registrations'] = $stmt->fetchColumn();
+
+// Total attendees
+$stmt = $pdo->prepare("SELECT SUM(attendee_count) as total FROM registrations WHERE status = 'active'");
+$stmt->execute();
+$stats['total_attendees'] = $stmt->fetchColumn() ?: 0;
+
+// Registrations by hall
+$stmt = $pdo->prepare("
+    SELECT h.hall_name, COUNT(r.id) as count, SUM(r.attendee_count) as attendees
+    FROM cinema_halls h
+    LEFT JOIN registrations r ON h.id = r.hall_id AND r.status = 'active'
+    WHERE h.is_active = 1
+    GROUP BY h.id, h.hall_name
+    ORDER BY h.id
 ");
-$stats = $statsStmt->fetch();
+$stmt->execute();
+$stats['by_hall'] = $stmt->fetchAll();
 
-// Get event settings
-$settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM event_settings");
-$settings = [];
-while ($row = $settingsStmt->fetch()) {
-    $settings[$row['setting_key']] = $row['setting_value'];
-}
-
-// Get cinema halls with current limits
-$hallsStmt = $pdo->query("SELECT * FROM cinema_halls WHERE is_active = 1 ORDER BY id");
-$halls = $hallsStmt->fetchAll();
-
-// Get shifts with hall names
-$shiftsStmt = $pdo->query("
-    SELECT s.*, h.hall_name, h.max_attendees_per_booking 
-    FROM shifts s 
-    LEFT JOIN cinema_halls h ON s.hall_id = h.id 
-    WHERE s.is_active = 1 
-    ORDER BY s.id
-");
-$shifts = $shiftsStmt->fetchAll();
-
-// Get recent activity
-$activityStmt = $pdo->query("
-    SELECT action, target_type, created_at, details 
-    FROM admin_activity_log 
-    ORDER BY created_at DESC 
+// Recent registrations
+$stmt = $pdo->prepare("
+    SELECT r.*, h.hall_name, s.shift_name
+    FROM registrations r
+    JOIN cinema_halls h ON r.hall_id = h.id
+    JOIN shifts s ON r.shift_id = s.id
+    WHERE r.status = 'active'
+    ORDER BY r.registration_date DESC
     LIMIT 10
 ");
-$recentActivity = $activityStmt->fetchAll();
+$stmt->execute();
+$recentRegistrations = $stmt->fetchAll();
+
+// Get only allowed event settings (removed unwanted ones)
+$allowedSettings = [
+    'movie_name',
+    'movie_date', 
+    'movie_time',
+    'movie_location',
+    'event_description',
+    'footer_text'
+];
+
+$stmt = $pdo->prepare("
+    SELECT setting_key, setting_value, setting_type, description 
+    FROM event_settings 
+    WHERE setting_key IN ('" . implode("','", $allowedSettings) . "')
+    ORDER BY setting_key
+");
+$stmt->execute();
+$eventSettings = $stmt->fetchAll();
 
 $csrfToken = generateCSRFToken();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - WD Movie Night</title>
+    <meta name="robots" content="noindex, nofollow">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <!-- Admin Header -->
+    <header class="admin-header">
+        <div class="container">
+            <div class="admin-header-content">
+                <h1 class="admin-logo">WD Admin</h1>
+                <nav class="admin-nav">
+                    <a href="index.php" class="admin-nav-link">← Back to Registration</a>
+                    <a href="#dashboard" class="admin-nav-link active">Dashboard</a>
+                    <a href="#registrations" class="admin-nav-link">Registrations</a>
+                    <a href="#settings" class="admin-nav-link">Settings</a>
+                    <a href="logout.php" class="admin-nav-link logout">Logout</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <?php if (isset($message)): ?>
+        <div class="alert alert-<?php echo $messageType; ?>" style="margin: 1rem; padding: 1rem; border-radius: 8px; <?php echo $messageType === 'success' ? 'background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);' : 'background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);'; ?>">
+            <?php echo htmlspecialchars($message); ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Dashboard Section -->
+    <section id="dashboard" class="admin-section active">
+        <div class="container">
+            <div class="admin-page-header">
+                <h2 class="admin-page-title">Dashboard Overview</h2>
+                <p class="admin-page-subtitle">Movie Night Registration System Statistics</p>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <div class="stat-number"><?php echo number_format($stats['total_registrations']); ?></div>
+                        <div class="stat-label">Total Registrations</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">🎫</div>
+                    <div class="stat-content">
+                        <div class="stat-number"><?php echo number_format($stats['total_attendees']); ?></div>
+                        <div class="stat-label">Total Attendees</div>
+                    </div>
+                </div>
+
+                <?php foreach ($stats['by_hall'] as $hall): ?>
+                <div class="stat-card">
+                    <div class="stat-icon"><?php echo $hall['hall_name'] === 'Cinema Hall 1' ? '🎬' : '🎭'; ?></div>
+                    <div class="stat-content">
+                        <div class="stat-number"><?php echo number_format($hall['attendees'] ?: 0); ?></div>
+                        <div class="stat-label"><?php echo sanitizeInput($hall['hall_name']); ?></div>
+                        <div class="stat-sub"><?php echo number_format($hall['count'] ?: 0); ?> registrations</div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+
+            <!-- Recent Registrations -->
+            <div class="admin-card">
+                <div class="admin-card-header">
+                    <h3 class="admin-card-title">Recent Registrations</h3>
+                    <a href="#registrations" class="view-all-link">View All</a>
+                </div>
+                <div class="admin-card-content">
+                    <?php if (empty($recentRegistrations)): ?>
+                        <div class="empty-state">
+                            <div class="empty-icon">📝</div>
+                            <p>No registrations yet</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="registrations-list">
+                            <?php foreach ($recentRegistrations as $reg): ?>
+                            <div class="registration-item">
+                                <div class="registration-info">
+                                    <div class="registration-name">
+                                        <strong><?php echo sanitizeInput($reg['staff_name']); ?></strong>
+                                        <span class="registration-emp"><?php echo sanitizeInput($reg['emp_number']); ?></span>
+                                    </div>
+                                    <div class="registration-details">
+                                        <span class="detail-badge"><?php echo sanitizeInput($reg['hall_name']); ?></span>
+                                        <span class="detail-badge"><?php echo sanitizeInput($reg['shift_name']); ?></span>
+                                        <span class="detail-badge"><?php echo (int)$reg['attendee_count']; ?> attendees</span>
+                                    </div>
+                                </div>
+                                <div class="registration-time">
+                                    <?php echo date('M j, Y g:i A', strtotime($reg['registration_date'])); ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Registrations Section -->
+    <section id="registrations" class="admin-section">
+        <div class="container">
+            <div class="admin-page-header">
+                <h2 class="admin-page-title">All Registrations</h2>
+                <p class="admin-page-subtitle">Manage and view all event registrations</p>
+            </div>
+
+            <!-- Search and Filters -->
+            <div class="admin-card">
+                <div class="admin-card-content">
+                    <div class="search-controls">
+                        <div class="search-group">
+                            <input type="text" id="searchInput" placeholder="Search by name or employee number..." class="search-input">
+                            <button onclick="searchRegistrations()" class="search-button">Search</button>
+                            <button onclick="clearSearch()" class="clear-button">Clear</button>
+                        </div>
+                        <div class="export-group">
+                            <button onclick="exportRegistrations()" class="export-button">Export CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registrations Table -->
+            <div class="admin-card">
+                <div class="admin-card-content">
+                    <div id="registrationsContainer">
+                        <div class="loading-state">Loading registrations...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Settings Section -->
+    <section id="settings" class="admin-section">
+        <div class="container">
+            <div class="admin-page-header">
+                <h2 class="admin-page-title">Event Settings</h2>
+                <p class="admin-page-subtitle">Configure event details</p>
+            </div>
+
+            <div class="settings-grid">
+                <?php foreach ($eventSettings as $setting): ?>
+                <div class="admin-card">
+                    <div class="admin-card-header">
+                        <h3 class="admin-card-title"><?php echo ucwords(str_replace('_', ' ', $setting['setting_key'])); ?></h3>
+                    </div>
+                    <div class="admin-card-content">
+                        <form class="setting-form" data-setting="<?php echo sanitizeInput($setting['setting_key']); ?>">
+                            <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                            
+                            <div class="form-group">
+                                <textarea name="setting_value" class="form-control" rows="3"><?php echo sanitizeInput($setting['setting_value']); ?></textarea>
+                            </div>
+                            
+                            <?php if ($setting['description']): ?>
+                                <div class="setting-description">
+                                    <?php echo sanitizeInput($setting['description']); ?>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <button type="submit" class="save-button">Save</button>
+                        </form>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer" class="message-container"></div>
+
+    <script>
+        const csrfToken = '<?php echo $csrfToken; ?>';
+        let currentRegistrations = [];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            setupNavigation();
+            loadRegistrations();
+            setupSettingsForms();
+        });
+
+        function setupNavigation() {
+            const navLinks = document.querySelectorAll('.admin-nav-link');
+            const sections = document.querySelectorAll('.admin-section');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (this.classList.contains('logout') || this.getAttribute('href').startsWith('index.php')) return;
+                    
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    
+                    // Update active nav
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show target section
+                    sections.forEach(s => s.classList.remove('active'));
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+        }
+
+        function loadRegistrations() {
+            fetch('api.php?action=get_registrations')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        currentRegistrations = data.registrations;
+                        displayRegistrations(data.registrations);
+                    } else {
+                        showMessage('Error loading registrations: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Failed to load registrations', 'error');
+                });
+        }
+
+        function displayRegistrations(registrations) {
+            const container = document.getElementById('registrationsContainer');
+            
+            if (registrations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <p>No registrations found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const table = `
+                <div class="registrations-table">
+                    <div class="table-header">
+                        <div class="table-cell">Employee</div>
+                        <div class="table-cell">Name</div>
+                        <div class="table-cell">Hall</div>
+                        <div class="table-cell">Shift</div>
+                        <div class="table-cell">Attendees</div>
+                        <div class="table-cell">Seats</div>
+                        <div class="table-cell">Date</div>
+                        <div class="table-cell">Actions</div>
+                    </div>
+                    ${registrations.map(reg => `
+                        <div class="table-row">
+                            <div class="table-cell">
+                                <strong>${reg.emp_number}</strong>
+                            </div>
+                            <div class="table-cell">${reg.staff_name}</div>
+                            <div class="table-cell">
+                                <span class="hall-badge">${reg.hall_name}</span>
+                            </div>
+                            <div class="table-cell">
+                                <span class="shift-badge">${reg.shift_name}</span>
+                            </div>
+                            <div class="table-cell">
+                                <span class="attendee-count">${reg.attendee_count}</span>
+                            </div>
+                            <div class="table-cell">
+                                <div class="seats-display">
+                                    ${JSON.parse(reg.selected_seats).map(seat => 
+                                        `<span class="seat-tag">${seat}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                            <div class="table-cell">
+                                <span class="date-display">${formatDate(reg.registration_date)}</span>
+                            </div>
+                            <div class="table-cell">
+                                <button onclick="archiveRegistration(${reg.id})" class="archive-button" title="Archive Registration">
+                                    🗄️ Archive
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            container.innerHTML = table;
+        }
+
+        function archiveRegistration(regId) {
+            if (!confirm('Are you sure you want to archive this registration? This will release the reserved seats and cannot be undone.')) {
+                return;
+            }
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `
+                <input type="hidden" name="action" value="archive_registration">
+                <input type="hidden" name="registration_id" value="${regId}">
+                <input type="hidden" name="csrf_token" value="${csrfToken}">
+            `;
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function searchRegistrations() {
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            
+            if (searchTerm === '') {
+                displayRegistrations(currentRegistrations);
+                return;
+            }
+
+            fetch(`api.php?action=search_registrations&search=${encodeURIComponent(searchTerm)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayRegistrations(data.registrations);
+                    } else {
+                        showMessage('Search failed: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    showMessage('Search failed', 'error');
+                });
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            displayRegistrations(currentRegistrations);
+        }
+
+        function exportRegistrations() {
+            window.open('export.php?type=csv&csrf_token=' + encodeURIComponent(csrfToken), '_blank');
+        }
+
+        function setupSettingsForms() {
+            const forms = document.querySelectorAll('.setting-form');
+            
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const settingKey = this.dataset.setting;
+                    const formData = new FormData(this);
+                    formData.append('action', 'update_setting');
+                    formData.append('setting_key', settingKey);
+                    
+                    fetch('admin-api.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showMessage('Setting updated successfully', 'success');
+                        } else {
+                            showMessage('Failed to update setting: ' + data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showMessage('Failed to update setting', 'error');
+                    });
+                });
+            });
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <span class="message-text">${message}</span>
+                <button class="message-close" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            container.appendChild(messageDiv);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Search on Enter key
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchRegistrations();
+            }
+        });
+    </script>
+
     <style>
-        :root {
-            --primary-color: #4f46e5;
-            --secondary-color: #06b6d4;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --info-color: #3b82f6;
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
-        }
-
-        .admin-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
         .admin-header {
-            background: var(--bg-secondary);
-            padding: 2rem;
-            border-radius: 16px;
-            margin-bottom: 2rem;
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .admin-header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
         }
 
-        .admin-title h1 {
-            color: var(--primary-color);
-            font-size: 2rem;
+        .admin-logo {
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .admin-title p {
-            color: var(--text-secondary);
+            color: #FFD700;
         }
 
         .admin-nav {
             display: flex;
-            gap: 1rem;
+            gap: 2rem;
         }
 
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .admin-nav-link {
+            color: #94a3b8;
             text-decoration: none;
-            display: inline-block;
-            text-align: center;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            cursor: pointer;
         }
 
-        .btn-primary {
-            background: var(--primary-color);
-            color: white;
+        .admin-nav-link:hover,
+        .admin-nav-link.active {
+            color: #FFD700;
         }
 
-        .btn-secondary {
-            background: var(--text-secondary);
-            color: white;
+        .admin-nav-link.logout {
+            color: #ef4444;
         }
 
-        .btn-danger {
-            background: var(--danger-color);
-            color: white;
+        .admin-nav-link.logout:hover {
+            color: #dc2626;
         }
 
-        .btn-success {
-            background: var(--success-color);
-            color: white;
+        .admin-section {
+            display: none;
+            padding: 2rem 0;
+            min-height: calc(100vh - 80px);
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        .admin-section.active {
+            display: block;
         }
 
-        .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
+        .admin-page-header {
+            margin-bottom: 2rem;
         }
 
-        /* Statistics Grid */
+        .admin-page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .admin-page-subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -481,268 +631,378 @@ $csrfToken = generateCSRFToken();
         }
 
         .stat-card {
-            background: var(--bg-secondary);
-            padding: 2rem;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: var(--shadow);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            border-color: var(--primary-color);
-            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .stat-icon {
             font-size: 2.5rem;
-            margin-bottom: 1rem;
+            width: 4rem;
+            text-align: center;
         }
 
         .stat-number {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
-            color: var(--primary-color);
-            margin-bottom: 0.5rem;
+            color: #FFD700;
         }
 
         .stat-label {
-            color: var(--text-secondary);
+            color: #ffffff;
             font-weight: 500;
         }
 
-        /* Tab Navigation */
-        .tab-navigation {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            background: var(--bg-secondary);
-            padding: 0.5rem;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            flex-wrap: wrap;
-            border: 1px solid var(--border-color);
+        .stat-sub {
+            color: #94a3b8;
+            font-size: 0.875rem;
         }
 
-        .tab-btn {
-            padding: 0.75rem 1.5rem;
-            background: transparent;
-            color: var(--text-secondary);
-            border: none;
+        .admin-card {
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-
-        .tab-btn.active {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .tab-btn:hover:not(.active) {
-            background: var(--bg-primary);
-        }
-
-        /* Tab Content */
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .section-card {
-            background: var(--bg-secondary);
-            padding: 2rem;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             margin-bottom: 2rem;
-            border: 1px solid var(--border-color);
         }
 
-        .section-card h2 {
-            color: var(--primary-color);
-            margin-bottom: 1.5rem;
-            font-size: 1.5rem;
-        }
-
-        /* Color Scheme Selector */
-        .color-scheme-section {
-            background: var(--bg-secondary);
-            padding: 2rem;
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            margin-bottom: 2rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .color-schemes {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .color-scheme {
+        .admin-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid var(--border-color);
-            background: var(--bg-primary);
         }
 
-        .color-scheme:hover {
-            border-color: var(--primary-color);
-            transform: translateY(-2px);
-        }
-
-        .color-scheme.active {
-            border-color: var(--primary-color);
-            background: rgba(79, 70, 229, 0.1);
-        }
-
-        .color-preview {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .scheme-name {
+        .admin-card-title {
+            font-size: 1.25rem;
             font-weight: 600;
-            color: var(--text-primary);
+            color: #ffffff;
         }
 
-        /* Alerts */
-        .alert {
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 1.5rem;
+        .admin-card-content {
+            padding: 1.5rem;
+        }
+
+        .view-all-link {
+            color: #FFD700;
+            text-decoration: none;
             font-weight: 500;
-            border-left: 4px solid;
+            cursor: pointer;
         }
 
-        .alert-success {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: var(--success-color);
-            color: var(--success-color);
+        .view-all-link:hover {
+            color: #e6c200;
         }
 
-        .alert-error {
-            background: rgba(239, 68, 68, 0.1);
-            border-color: var(--danger-color);
-            color: var(--danger-color);
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #94a3b8;
         }
 
-        /* Forms */
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-size: 1rem;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        .form-check {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .form-check input[type="checkbox"] {
-            width: auto;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-
-        /* Tables */
-        .table-responsive {
-            overflow-x: auto;
-        }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
+        .empty-icon {
+            font-size: 3rem;
             margin-bottom: 1rem;
         }
 
-        .table th,
-        .table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
+        .registrations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
-        .table th {
-            background: var(--bg-primary);
+        .registration-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .registration-name strong {
+            color: #ffffff;
+        }
+
+        .registration-emp {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+        }
+
+        .registration-details {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .detail-badge {
+            background: rgba(255, 215, 0, 0.1);
+            color: #FFD700;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .registration-time {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
+        .search-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+
+        .search-button, .clear-button, .export-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .search-button {
+            background: #FFD700;
+            color: #000;
+        }
+
+        .clear-button {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .export-button {
+            background: #2E8BFF;
+            color: #ffffff;
+        }
+
+        .registrations-table {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 100px 1fr 120px 150px 80px 150px 120px 100px;
+            background: rgba(255, 255, 255, 0.1);
             font-weight: 600;
-            color: var(--text-primary);
+            color: #FFD700;
         }
 
-        .table tr:hover {
-            background: var(--bg-primary);
+        .table-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 120px 150px 80px 150px 120px 100px;
+            background: rgba(255, 255, 255, 0.02);
         }
 
-        /* Activity Log */
-        .activity-item {
+        .table-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .table-cell {
+            padding: 0.75rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            color: #ffffff;
+        }
+
+        .table-cell:last-child {
+            border-right: none;
+        }
+
+        .hall-badge, .shift-badge {
+            background: rgba(46, 139, 255, 0.1);
+            color: #2E8BFF;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .attendee-count {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .seats-display {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .seat-tag {
+            background: #FFD700;
+            color: #000;
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+            font-size: 0.625rem;
+            font-weight: 600;
+        }
+
+        .date-display {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .archive-button {
+            background: #ef4444;
+            color: #ffffff;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .archive-button:hover {
+            background: #dc2626;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .setting-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-control {
+            padding: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            resize: vertical;
+        }
+
+        .setting-description {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+        }
+
+        .save-button {
+            padding: 0.5rem 1rem;
+            background: #22c55e;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .save-button:hover {
+            background: #16a34a;
+        }
+
+        .message-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .message {
             padding: 1rem;
-            border-left: 4px solid var(--primary-color);
-            background: var(--bg-primary);
-            margin-bottom: 0.5rem;
-            border-radius: 0 8px 8px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
         }
 
-        .activity-time {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
+        .message.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .admin-container {
-                padding: 1rem;
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .message-close {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 1rem;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
             }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
 
-            .admin-header {
+        @media (max-width: 768px) {
+            .admin-header-content {
                 flex-direction: column;
                 gap: 1rem;
-                text-align: center;
             }
 
             .admin-nav {
+                gap: 1rem;
                 flex-wrap: wrap;
                 justify-content: center;
             }
@@ -751,604 +1011,26 @@ $csrfToken = generateCSRFToken();
                 grid-template-columns: 1fr;
             }
 
-            .tab-navigation {
+            .search-controls {
                 flex-direction: column;
+                align-items: stretch;
             }
 
-            .form-row {
+            .table-header, .table-row {
                 grid-template-columns: 1fr;
+                gap: 0.5rem;
             }
 
-            .color-schemes {
+            .table-cell {
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                justify-content: space-between;
+            }
+
+            .settings-grid {
                 grid-template-columns: 1fr;
             }
         }
     </style>
-</head>
-<body>
-    <div class="admin-container">
-        <header class="admin-header">
-            <div class="admin-title">
-                <h1>🎬 Movie Night Admin Dashboard</h1>
-                <p>Western Digital Event Management System</p>
-            </div>
-            <div class="admin-nav">
-                <a href="index.php" class="btn btn-secondary">🎟️ Registration Form</a>
-                <a href="export.php" class="btn btn-primary">📊 Export Data</a>
-                <a href="?logout=1" class="btn btn-danger">🚪 Logout</a>
-            </div>
-        </header>
-
-        <?php if ($message): ?>
-            <div class="alert alert-<?php echo $messageType; ?>">
-                <?php echo htmlspecialchars($message); ?>
-            </div>
-        <?php endif; ?>
-
-        <!-- Statistics Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">✅</div>
-                <div class="stat-number"><?php echo $stats['total_registrations']; ?></div>
-                <div class="stat-label">Total Registrations</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-number"><?php echo $stats['total_attendees']; ?></div>
-                <div class="stat-label">Total Attendees</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">💺</div>
-                <div class="stat-number"><?php echo $stats['available_seats']; ?></div>
-                <div class="stat-label">Available Seats</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🚫</div>
-                <div class="stat-number"><?php echo $stats['blocked_seats'] + $stats['reserved_seats']; ?></div>
-                <div class="stat-label">Blocked/Reserved</div>
-            </div>
-        </div>
-
-        <!-- Tab Navigation -->
-        <div class="tab-navigation">
-            <button class="tab-btn active" onclick="showTab('registrations')">🔍 Registrations</button>
-            <button class="tab-btn" onclick="showTab('settings')">⚙️ Event Settings</button>
-            <button class="tab-btn" onclick="showTab('appearance')">🎨 Appearance</button>
-            <button class="tab-btn" onclick="showTab('halls')">🏛️ Cinema Halls</button>
-            <button class="tab-btn" onclick="showTab('shifts')">🕐 Shifts</button>
-            <button class="tab-btn" onclick="showTab('seating')">🪑 Seating Plans</button>
-            <button class="tab-btn" onclick="showTab('activity')">📋 Activity Log</button>
-        </div>
-
-        <!-- Registrations Tab -->
-        <div id="registrations-tab" class="tab-content active">
-            <div class="section-card">
-                <h2>🔍 Registration Management</h2>
-                
-                <div style="margin-bottom: 1.5rem;">
-                    <input type="text" id="searchInput" placeholder="Search by name or employee number..." 
-                           style="width: 100%; max-width: 400px; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 12px;">
-                    <button onclick="searchRegistrations()" class="btn btn-primary" style="margin-left: 1rem;">Search</button>
-                </div>
-
-                <div id="registrationsContainer">
-                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                        Loading registrations...
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Event Settings Tab -->
-        <div id="settings-tab" class="tab-content">
-            <div class="section-card">
-                <h2>⚙️ Event Settings</h2>
-                
-                <form method="POST" style="max-width: 600px;">
-                    <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                    <input type="hidden" name="action" value="update_event_settings">
-                    
-                    <div class="form-group">
-                        <label for="movie_name" class="form-label">🎬 Movie Name</label>
-                        <input type="text" id="movie_name" name="movie_name" class="form-control"
-                               value="<?php echo htmlspecialchars($settings['movie_name'] ?? ''); ?>" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="movie_date" class="form-label">📅 Movie Date</label>
-                        <input type="text" id="movie_date" name="movie_date" class="form-control"
-                               value="<?php echo htmlspecialchars($settings['movie_date'] ?? ''); ?>" 
-                               placeholder="e.g., Friday, 16 May 2025" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="movie_time" class="form-label">🕐 Movie Time</label>
-                        <input type="text" id="movie_time" name="movie_time" class="form-control"
-                               value="<?php echo htmlspecialchars($settings['movie_time'] ?? ''); ?>" 
-                               placeholder="e.g., 8:30 PM" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="movie_location" class="form-label">📍 Movie Location</label>
-                        <input type="text" id="movie_location" name="movie_location" class="form-control"
-                               value="<?php echo htmlspecialchars($settings['movie_location'] ?? ''); ?>" 
-                               placeholder="e.g., WD Campus Cinema Complex" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="event_description" class="form-label">📝 Event Description</label>
-                        <textarea id="event_description" name="event_description" class="form-control" rows="3"><?php echo htmlspecialchars($settings['event_description'] ?? ''); ?></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="form-check">
-                            <input type="checkbox" id="registration_enabled" name="registration_enabled" 
-                                   <?php echo ($settings['registration_enabled'] ?? 'true') === 'true' ? 'checked' : ''; ?>>
-                            <label for="registration_enabled" class="form-label">🎟️ Enable Registration</label>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="form-check">
-                            <input type="checkbox" id="allow_seat_separation" name="allow_seat_separation" 
-                                   <?php echo ($settings['allow_seat_separation'] ?? 'false') === 'true' ? 'checked' : ''; ?>>
-                            <label for="allow_seat_separation" class="form-label">🪑 Allow Seat Separation</label>
-                            <small style="display: block; color: var(--text-secondary); margin-top: 0.5rem;">
-                                When disabled, users must select consecutive seats
-                            </small>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success">💾 Save Settings</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Appearance Tab -->
-        <div id="appearance-tab" class="tab-content">
-            <div class="color-scheme-section">
-                <h2>🎨 Color Themes</h2>
-                <p>Choose a color scheme for the registration website</p>
-                
-                <form method="POST" id="colorSchemeForm">
-                    <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                    <input type="hidden" name="action" value="update_color_scheme">
-                    <input type="hidden" name="primary_color" id="selected_primary">
-                    <input type="hidden" name="secondary_color" id="selected_secondary">
-                    
-                    <div class="color-schemes">
-                        <div class="color-scheme active" data-primary="#FFD700" data-secondary="#2E8BFF">
-                            <div class="color-preview" style="background: linear-gradient(45deg, #FFD700, #2E8BFF);"></div>
-                            <div>
-                                <div class="scheme-name">Gold & Blue</div>
-                                <small style="color: var(--text-secondary);">Classic & Professional</small>
-                            </div>
-                        </div>
-                        
-                        <div class="color-scheme" data-primary="#8B5CF6" data-secondary="#EC4899">
-                            <div class="color-preview" style="background: linear-gradient(45deg, #8B5CF6, #EC4899);"></div>
-                            <div>
-                                <div class="scheme-name">Purple & Pink</div>
-                                <small style="color: var(--text-secondary);">Modern & Vibrant</small>
-                            </div>
-                        </div>
-                        
-                        <div class="color-scheme" data-primary="#10B981" data-secondary="#06B6D4">
-                            <div class="color-preview" style="background: linear-gradient(45deg, #10B981, #06B6D4);"></div>
-                            <div>
-                                <div class="scheme-name">Green & Teal</div>
-                                <small style="color: var(--text-secondary);">Fresh & Natural</small>
-                            </div>
-                        </div>
-                        
-                        <div class="color-scheme" data-primary="#F59E0B" data-secondary="#EF4444">
-                            <div class="color-preview" style="background: linear-gradient(45deg, #F59E0B, #EF4444);"></div>
-                            <div>
-                                <div class="scheme-name">Orange & Red</div>
-                                <small style="color: var(--text-secondary);">Warm & Energetic</small>
-                            </div>
-                        </div>
-                        
-                        <div class="color-scheme" data-primary="#6366F1" data-secondary="#22D3EE">
-                            <div class="color-preview" style="background: linear-gradient(45deg, #6366F1, #22D3EE);"></div>
-                            <div>
-                                <div class="scheme-name">Indigo & Cyan</div>
-                                <small style="color: var(--text-secondary);">Cool & Tech</small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 2rem;">
-                        <button type="submit" class="btn btn-primary">🎨 Apply Color Scheme</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Cinema Halls Tab -->
-        <div id="halls-tab" class="tab-content">
-            <div class="section-card">
-                <h2>🏛️ Cinema Halls Management</h2>
-                
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Hall ID</th>
-                                <th>Hall Name</th>
-                                <th>Max Attendees</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($halls as $hall): ?>
-                            <tr>
-                                <td><?php echo $hall['id']; ?></td>
-                                <td>
-                                    <form method="POST" style="display: inline-block;">
-                                        <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                                        <input type="hidden" name="action" value="update_hall">
-                                        <input type="hidden" name="hall_id" value="<?php echo $hall['id']; ?>">
-                                        <input type="text" name="hall_name" value="<?php echo htmlspecialchars($hall['hall_name']); ?>" 
-                                               style="border: 1px solid var(--border-color); padding: 0.25rem; border-radius: 4px;">
-                                </td>
-                                <td>
-                                    <input type="number" name="max_attendees" value="<?php echo $hall['max_attendees_per_booking']; ?>" 
-                                           min="1" max="3" style="border: 1px solid var(--border-color); padding: 0.25rem; border-radius: 4px; width: 80px;">
-                                    <small style="display: block; color: var(--text-secondary); font-size: 0.8rem;">Max: 3</small>
-                                </td>
-                                <td>
-                                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Shifts Tab -->
-        <div id="shifts-tab" class="tab-content">
-            <div class="section-card">
-                <h2>🕐 Shifts Management</h2>
-                
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Shift ID</th>
-                                <th>Shift Name</th>
-                                <th>Cinema Hall</th>
-                                <th>Seat Count</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($shifts as $shift): ?>
-                            <tr>
-                                <td><?php echo $shift['id']; ?></td>
-                                <td>
-                                    <form method="POST" style="display: inline-block;">
-                                        <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                                        <input type="hidden" name="action" value="update_shift">
-                                        <input type="hidden" name="shift_id" value="<?php echo $shift['id']; ?>">
-                                        <input type="text" name="shift_name" value="<?php echo htmlspecialchars($shift['shift_name']); ?>" 
-                                               style="border: 1px solid var(--border-color); padding: 0.25rem; border-radius: 4px; min-width: 200px;">
-                                </td>
-                                <td>
-                                    <?php echo htmlspecialchars($shift['hall_name'] ?? 'Unknown'); ?>
-                                    <small style="display: block; color: var(--text-secondary);">
-                                        Max <?php echo $shift['max_attendees_per_booking'] ?? 3; ?> attendees
-                                    </small>
-                                </td>
-                                <td><?php echo $shift['seat_count'] ?? 0; ?></td>
-                                <td>
-                                        <button type="submit" class="btn btn-primary btn-sm">Update</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Seating Plans Tab -->
-        <div id="seating-tab" class="tab-content">
-            <div class="section-card">
-                <h2>🪑 Seating Plan Generator</h2>
-                <p>Generate new seating arrangements for cinema halls and shifts.</p>
-                
-                <form method="POST" style="max-width: 600px;">
-                    <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                    <input type="hidden" name="action" value="regenerate_seats">
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="seating_hall_id" class="form-label">Cinema Hall</label>
-                            <select id="seating_hall_id" name="hall_id" class="form-control" required>
-                                <option value="">Select Hall</option>
-                                <?php foreach ($halls as $hall): ?>
-                                <option value="<?php echo $hall['id']; ?>"><?php echo htmlspecialchars($hall['hall_name']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="seating_shift_id" class="form-label">Shift</label>
-                            <select id="seating_shift_id" name="shift_id" class="form-control" required>
-                                <option value="">Select Shift</option>
-                                <?php foreach ($shifts as $shift): ?>
-                                <option value="<?php echo $shift['id']; ?>" data-hall-id="<?php echo $shift['hall_id']; ?>">
-                                    <?php echo htmlspecialchars($shift['shift_name']); ?> (<?php echo htmlspecialchars($shift['hall_name'] ?? 'Unknown'); ?>)
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="rows" class="form-label">Number of Rows</label>
-                            <input type="number" id="rows" name="rows" class="form-control" min="1" max="20" value="8" required>
-                            <small class="form-text text-muted">Maximum 20 rows (A-T)</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="seats_per_row" class="form-label">Seats per Row</label>
-                            <input type="number" id="seats_per_row" name="seats_per_row" class="form-control" min="1" max="50" value="10" required>
-                            <small class="form-text text-muted">Maximum 50 seats per row</small>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div style="padding: 1rem; background: var(--bg-primary); border-radius: 8px; margin-bottom: 1rem;">
-                            <strong>Preview:</strong> <span id="seatPreview">8 rows × 10 seats = 80 total seats</span>
-                        </div>
-                    </div>
-                    
-                    <div style="background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--danger-color); margin-bottom: 1rem;">
-                        <strong>⚠️ Warning:</strong> This will delete all existing seats for the selected hall and shift, including any reservations!
-                    </div>
-                    
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure? This will delete all existing seats and reservations for this hall and shift!')">
-                        🔄 Regenerate Seating Plan
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Activity Log Tab -->
-        <div id="activity-tab" class="tab-content">
-            <div class="section-card">
-                <h2>📋 Recent Admin Activity</h2>
-                
-                <?php if (empty($recentActivity)): ?>
-                    <p style="color: var(--text-secondary); text-align: center; padding: 2rem;">
-                        No recent activity to display.
-                    </p>
-                <?php else: ?>
-                    <?php foreach ($recentActivity as $activity): ?>
-                        <div class="activity-item">
-                            <strong><?php echo htmlspecialchars(ucfirst(str_replace('_', ' ', $activity['action']))); ?></strong>
-                            <?php if ($activity['target_type']): ?>
-                                on <?php echo htmlspecialchars($activity['target_type']); ?>
-                            <?php endif; ?>
-                            <div class="activity-time">
-                                <?php echo date('M j, Y g:i A', strtotime($activity['created_at'])); ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Tab functionality
-        function showTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Remove active class from all buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            
-            // Show selected tab
-            document.getElementById(tabName + '-tab').classList.add('active');
-            event.target.classList.add('active');
-            
-            // Load content based on tab
-            if (tabName === 'registrations') {
-                loadRegistrations();
-            }
-        }
-
-        // Color scheme functionality
-        document.querySelectorAll('.color-scheme').forEach(scheme => {
-            scheme.addEventListener('click', function() {
-                // Remove active class from all schemes
-                document.querySelectorAll('.color-scheme').forEach(s => s.classList.remove('active'));
-                
-                // Add active class to clicked scheme
-                this.classList.add('active');
-                
-                // Set hidden form values
-                document.getElementById('selected_primary').value = this.dataset.primary;
-                document.getElementById('selected_secondary').value = this.dataset.secondary;
-            });
-        });
-
-        // Set initial color scheme values
-        const activeScheme = document.querySelector('.color-scheme.active');
-        if (activeScheme) {
-            document.getElementById('selected_primary').value = activeScheme.dataset.primary;
-            document.getElementById('selected_secondary').value = activeScheme.dataset.secondary;
-        }
-
-        // Seating plan preview
-        document.getElementById('rows').addEventListener('input', updateSeatPreview);
-        document.getElementById('seats_per_row').addEventListener('input', updateSeatPreview);
-        
-        function updateSeatPreview() {
-            const rows = parseInt(document.getElementById('rows').value) || 0;
-            const seatsPerRow = parseInt(document.getElementById('seats_per_row').value) || 0;
-            const total = rows * seatsPerRow;
-            document.getElementById('seatPreview').textContent = `${rows} rows × ${seatsPerRow} seats = ${total} total seats`;
-        }
-
-        // Shift filtering for seating plan
-        document.getElementById('seating_hall_id').addEventListener('change', function() {
-            const hallId = this.value;
-            const shiftSelect = document.getElementById('seating_shift_id');
-            const options = shiftSelect.querySelectorAll('option[data-hall-id]');
-            
-            options.forEach(option => {
-                if (hallId === '' || option.dataset.hallId === hallId) {
-                    option.style.display = 'block';
-                } else {
-                    option.style.display = 'none';
-                }
-            });
-            
-            shiftSelect.value = '';
-        });
-
-        // Registration management
-        async function loadRegistrations() {
-            try {
-                const response = await fetch('admin-api.php?action=get_registrations');
-                const data = await response.json();
-                renderRegistrationsTable(data);
-            } catch (error) {
-                console.error('Error loading registrations:', error);
-                document.getElementById('registrationsContainer').innerHTML = 
-                    '<p style="color: var(--danger-color); text-align: center;">Error loading registrations.</p>';
-            }
-        }
-
-        async function searchRegistrations() {
-            const search = document.getElementById('searchInput').value;
-            
-            try {
-                const response = await fetch(`admin-api.php?action=search_registrations&search=${encodeURIComponent(search)}`);
-                const data = await response.json();
-                renderRegistrationsTable(data);
-            } catch (error) {
-                console.error('Search error:', error);
-            }
-        }
-
-        function renderRegistrationsTable(data) {
-            const container = document.getElementById('registrationsContainer');
-            
-            if (!data.registrations || data.registrations.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No registrations found.</p>';
-                return;
-            }
-            
-            let html = '<div class="table-responsive"><table class="table"><thead><tr>';
-            html += '<th>Employee #</th><th>Name</th><th>Attendees</th><th>Hall</th><th>Shift</th><th>Seats</th><th>Date</th><th>Actions</th>';
-            html += '</tr></thead><tbody>';
-            
-            data.registrations.forEach(reg => {
-                const seats = JSON.parse(reg.selected_seats).join(', ');
-                const date = new Date(reg.registration_date).toLocaleDateString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric', 
-                    hour: '2-digit', minute: '2-digit'
-                });
-                
-                html += `<tr>
-                    <td>${escapeHtml(reg.emp_number)}</td>
-                    <td>${escapeHtml(reg.staff_name)}</td>
-                    <td>${reg.attendee_count}</td>
-                    <td>${escapeHtml(reg.hall_name)}</td>
-                    <td>${escapeHtml(reg.shift_name)}</td>
-                    <td>${seats}</td>
-                    <td>${date}</td>
-                    <td><button onclick="deleteRegistration(${reg.id})" class="btn btn-danger btn-sm">🗑 Delete</button></td>
-                </tr>`;
-            });
-            
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
-        }
-
-        async function deleteRegistration(regId) {
-            if (!confirm('Are you sure you want to delete this registration? This will release the reserved seats.')) {
-                return;
-            }
-            
-            try {
-                const formData = new FormData();
-                formData.append('action', 'delete_registration');
-                formData.append('reg_id', regId);
-                formData.append('csrf_token', '<?php echo $csrfToken; ?>');
-                
-                const response = await fetch('admin-dashboard.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (response.ok) {
-                    showToast('Registration deleted successfully ✅', 'success');
-                    loadRegistrations();
-                } else {
-                    showToast('Error deleting registration', 'error');
-                }
-            } catch (error) {
-                console.error('Delete error:', error);
-                showToast('Error deleting registration', 'error');
-            }
-        }
-
-        // Utility functions
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function showToast(message, type) {
-            // Simple toast notification
-            const toast = document.createElement('div');
-            toast.style.cssText = `
-                position: fixed; top: 20px; right: 20px; z-index: 10000;
-                padding: 1rem 1.5rem; border-radius: 12px; color: white; font-weight: 600;
-                background: ${type === 'success' ? 'var(--success-color)' : 'var(--danger-color)'};
-                transform: translateX(400px); transition: transform 0.3s ease;
-            `;
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-            
-            setTimeout(() => toast.style.transform = 'translateX(0)', 100);
-            setTimeout(() => {
-                toast.style.transform = 'translateX(400px)';
-                setTimeout(() => document.body.removeChild(toast), 300);
-            }, 3000);
-        }
-
-        // Auto-search on input
-        document.getElementById('searchInput').addEventListener('input', function() {
-            clearTimeout(this.searchTimeout);
-            this.searchTimeout = setTimeout(() => {
-                if (this.value.length >= 2 || this.value.length === 0) {
-                    searchRegistrations();
-                }
-            }, 500);
-        });
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            loadRegistrations();
-        });
-    </script>
 </body>
 </html>

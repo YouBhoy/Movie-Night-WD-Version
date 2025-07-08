@@ -8,57 +8,78 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
 }
 
 $error = '';
-$csrfToken = generateCSRFToken();
+$loginAttempts = 0;
+
+// Check login attempts from this IP
+$pdo = getDBConnection();
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+// Clean old login attempts (older than 1 hour)
+$cleanStmt = $pdo->prepare("DELETE FROM login_attempts WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+$cleanStmt->execute();
+
+// Check recent failed attempts
+$attemptStmt = $pdo->prepare("
+    SELECT COUNT(*) as attempts 
+    FROM login_attempts 
+    WHERE ip_address = ? AND success = 0 AND created_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+");
+$attemptStmt->execute([$ip]);
+$loginAttempts = $attemptStmt->fetchColumn();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Rate limiting check
-    $clientIP = $_SERVER['REMOTE_ADDR'];
-    if (!checkRateLimit($clientIP, 10, 900)) { // 10 attempts per 15 minutes
-        $error = 'Too many login attempts. Please try again later.';
+    if ($loginAttempts >= 5) {
+        $error = 'Too many failed login attempts. Please try again in 15 minutes.';
     } else {
-        // CSRF validation
-        if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+        
+        // Validate CSRF token
+        if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
             $error = 'Invalid security token. Please refresh the page.';
         } else {
-            $username = trim($_POST['username'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $adminKey = trim($_POST['admin_key'] ?? '');
-            
-            if ($username && $password && $adminKey) {
-                $loginResult = checkAdminLogin($username, $password, $adminKey);
+            // Check credentials
+            if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
+                // Successful login
+                $_SESSION['admin_logged_in'] = true;
+                $_SESSION['admin_username'] = $username;
+                $_SESSION['admin_login_time'] = time();
                 
-                if ($loginResult['success']) {
-                    $_SESSION['admin_logged_in'] = true;
-                    $_SESSION['admin_username'] = $username;
-                    $_SESSION['admin_login_time'] = time();
-                    
-                    // Log successful admin login
-                    try {
-                        $pdo = getDBConnection();
-                        $logStmt = $pdo->prepare("
-                            INSERT INTO admin_activity_log (admin_user, action, ip_address, user_agent) 
-                            VALUES (?, 'login', ?, ?)
-                        ");
-                        $logStmt->execute([
-                            $username,
-                            $_SERVER['REMOTE_ADDR'],
-                            $_SERVER['HTTP_USER_AGENT'] ?? null
-                        ]);
-                    } catch (Exception $e) {
-                        error_log("Failed to log admin activity: " . $e->getMessage());
-                    }
-                    
-                    header('Location: admin-dashboard.php');
-                    exit;
-                } else {
-                    $error = $loginResult['message'];
-                }
+                // Log successful login
+                $logStmt = $pdo->prepare("
+                    INSERT INTO login_attempts (ip_address, username, success, message, created_at) 
+                    VALUES (?, ?, 1, 'Successful login', NOW())
+                ");
+                $logStmt->execute([$ip, $username]);
+                
+                // Log admin activity
+                $activityStmt = $pdo->prepare("
+                    INSERT INTO admin_activity_log (admin_user, action, details, ip_address, user_agent, created_at) 
+                    VALUES (?, 'login', 'Admin logged in successfully', ?, ?, NOW())
+                ");
+                $activityStmt->execute([$username, $ip, $_SERVER['HTTP_USER_AGENT'] ?? '']);
+                
+                header('Location: admin-dashboard.php');
+                exit;
             } else {
-                $error = 'Please fill in all required fields.';
+                // Failed login
+                $error = 'Invalid username or password.';
+                
+                // Log failed attempt
+                $logStmt = $pdo->prepare("
+                    INSERT INTO login_attempts (ip_address, username, success, message, created_at) 
+                    VALUES (?, ?, 0, 'Invalid credentials', NOW())
+                ");
+                $logStmt->execute([$ip, $username]);
+                
+                $loginAttempts++;
             }
         }
     }
 }
+
+$csrfToken = generateCSRFToken();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,202 +90,191 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="robots" content="noindex, nofollow">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <div class="admin-login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1 class="login-title">Admin Login</h1>
+                <p class="login-subtitle">WD Movie Night Registration System</p>
+            </div>
+            
+            <?php if ($error): ?>
+            <div class="error-message">
+                <span class="error-icon">⚠️</span>
+                <?php echo sanitizeInput($error); ?>
+            </div>
+            <?php endif; ?>
+            
+            <?php if ($loginAttempts >= 3 && $loginAttempts < 5): ?>
+            <div class="warning-message">
+                <span class="warning-icon">⚠️</span>
+                Warning: <?php echo (5 - $loginAttempts); ?> login attempts remaining before temporary lockout.
+            </div>
+            <?php endif; ?>
+            
+            <form method="POST" class="login-form">
+                <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
+                
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" name="username" class="form-control" 
+                           required autocomplete="username"
+                           value="<?php echo sanitizeInput($_POST['username'] ?? ''); ?>">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" 
+                           required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="login-button" <?php echo ($loginAttempts >= 5) ? 'disabled' : ''; ?>>
+                    <?php echo ($loginAttempts >= 5) ? 'Locked Out' : 'Login'; ?>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <a href="index.php" class="back-link">← Back to Registration</a>
+            </div>
+        </div>
+    </div>
+
     <style>
         .admin-login-container {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 2rem;
         }
-        
+
         .login-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 3rem;
             width: 100%;
             max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
         }
-        
+
         .login-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 2rem;
         }
-        
+
         .login-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #FFD700;
+            margin-bottom: 0.5rem;
         }
-        
+
         .login-subtitle {
-            color: #666;
-            font-size: 14px;
+            color: #94a3b8;
+            font-size: 0.9rem;
         }
-        
-        .login-form {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .form-label {
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-        
-        .form-input {
-            padding: 12px 16px;
-            border: 2px solid #e1e5e9;
+
+        .error-message, .warning-message {
+            padding: 1rem;
             border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.2s;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
+
         .error-message {
-            background: #fee;
-            color: #c53030;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            border: 1px solid #fed7d7;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
         }
-        
-        .login-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 14px 20px;
-            border-radius: 8px;
-            font-size: 16px;
+
+        .warning-message {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+        }
+
+        .login-form {
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
             font-weight: 500;
-            cursor: pointer;
-            transition: transform 0.2s;
+            color: #ffffff;
         }
-        
-        .login-button:hover {
-            transform: translateY(-1px);
-        }
-        
-        .login-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .security-notice {
-            background: #f7fafc;
-            border: 1px solid #e2e8f0;
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
-            padding: 16px;
-            margin-top: 20px;
-            font-size: 12px;
-            color: #4a5568;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
         }
-        
-        .back-link {
+
+        .form-control:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 0.875rem;
+            background: #FFD700;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-button:hover:not(:disabled) {
+            background: #e6c200;
+            transform: translateY(-2px);
+        }
+
+        .login-button:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .login-footer {
             text-align: center;
-            margin-top: 20px;
         }
-        
-        .back-link a {
-            color: #667eea;
+
+        .back-link {
+            color: #94a3b8;
             text-decoration: none;
-            font-size: 14px;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
         }
-        
-        .back-link a:hover {
-            text-decoration: underline;
+
+        .back-link:hover {
+            color: #FFD700;
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 2rem;
+                margin: 1rem;
+            }
         }
     </style>
-</head>
-<body>
-    <div class="admin-login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <h1 class="login-title">Admin Login</h1>
-                <p class="login-subtitle">WD Movie Night Management System</p>
-            </div>
-            
-            <?php if ($error): ?>
-            <div class="error-message">
-                <?php echo sanitizeInput($error); ?>
-            </div>
-            <?php endif; ?>
-            
-            <form class="login-form" method="POST">
-                <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
-                
-                <div class="form-group">
-                    <label for="username" class="form-label">Username</label>
-                    <input type="text" id="username" name="username" class="form-input" 
-                           required autocomplete="username" value="<?php echo sanitizeInput($_POST['username'] ?? ''); ?>">
-                </div>
-                
-                <div class="form-group">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" id="password" name="password" class="form-input" 
-                           required autocomplete="current-password">
-                </div>
-                
-                <div class="form-group">
-                    <label for="admin_key" class="form-label">Admin Key</label>
-                    <input type="password" id="admin_key" name="admin_key" class="form-input" 
-                           required autocomplete="off">
-                </div>
-                
-                <button type="submit" class="login-button">Login to Admin Panel</button>
-            </form>
-            
-            <div class="security-notice">
-                <strong>Security Notice:</strong> This is a secure admin area. All login attempts are logged and monitored. 
-                Unauthorized access attempts will be reported.
-            </div>
-            
-            <div class="back-link">
-                <a href="index.php">← Back to Registration</a>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        // Auto-focus first empty field
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('.form-input');
-            for (let input of inputs) {
-                if (!input.value) {
-                    input.focus();
-                    break;
-                }
-            }
-        });
-        
-        // Form validation
-        document.querySelector('.login-form').addEventListener('submit', function(e) {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const adminKey = document.getElementById('admin_key').value.trim();
-            
-            if (!username || !password || !adminKey) {
-                e.preventDefault();
-                alert('Please fill in all required fields.');
-            }
-        });
-    </script>
 </body>
 </html>
