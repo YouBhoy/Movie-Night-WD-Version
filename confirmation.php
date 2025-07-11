@@ -7,222 +7,128 @@ if (!isset($_SESSION['registration_success']) || !$_SESSION['registration_succes
     exit;
 }
 
+// Get registration data from session
 $registrationData = $_SESSION['registration_data'] ?? null;
-
 if (!$registrationData) {
     header('Location: index.php');
     exit;
 }
 
-// Clear session data after displaying
-unset($_SESSION['registration_success']);
-unset($_SESSION['registration_data']);
-
-// Get event settings
+// Get event settings for display
 $pdo = getDBConnection();
-$settingsStmt = $pdo->prepare("SELECT setting_key, setting_value FROM event_settings WHERE is_public = 1");
-$settingsStmt->execute();
+$settingsStmt = $pdo->query("SELECT setting_key, setting_value FROM event_settings");
 $settings = [];
 while ($row = $settingsStmt->fetch()) {
     $settings[$row['setting_key']] = $row['setting_value'];
 }
 
-$movieName = $settings['movie_name'] ?? 'Thunderbolts*';
-$movieDate = $settings['movie_date'] ?? 'Friday, 16 May 2025';
-$movieTime = $settings['movie_time'] ?? '8:30 PM';
-$movieLocation = $settings['movie_location'] ?? 'WD Campus Cinema Complex';
-$primaryColor = $settings['primary_color'] ?? '#FFD700';
-$secondaryColor = $settings['secondary_color'] ?? '#2E8BFF';
-$footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal Movie Night Event';
+// Clear the session data to prevent refresh issues
+unset($_SESSION['registration_success']);
+unset($_SESSION['registration_data']);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registration Confirmed - WD Movie Night</title>
-    <meta name="robots" content="noindex, nofollow">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <style>
-        :root {
-            --primary-color: <?php echo sanitizeInput($primaryColor); ?>;
-            --secondary-color: <?php echo sanitizeInput($secondaryColor); ?>;
-        }
-    </style>
 </head>
 <body class="dark-theme">
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <h1 class="logo-text">WD</h1>
-                <nav class="nav">
-                    <a href="index.php" class="nav-link">Back to Home</a>
-                </nav>
+    <div class="container">
+        <div class="confirmation-container">
+            <div class="confirmation-header">
+                <div class="success-icon">✅</div>
+                <h1 class="confirmation-title">Registration Confirmed!</h1>
+                <p class="confirmation-subtitle">Your seats have been successfully reserved</p>
             </div>
-        </div>
-    </header>
 
-    <!-- Confirmation Section -->
-    <section class="confirmation-section">
-        <div class="container">
-            <div class="confirmation-container">
-                <div class="confirmation-header">
-                    <div class="success-icon">✅</div>
-                    <h1 class="confirmation-title">Registration Confirmed!</h1>
-                    <p class="confirmation-subtitle">Your seats have been successfully reserved</p>
-                </div>
-
-                <div class="confirmation-details">
-                    <div class="details-card">
-                        <h2 class="details-title">Registration Details</h2>
-                        
-                        <div class="detail-grid">
-                            <div class="detail-item">
-                                <span class="detail-label">Employee Number:</span>
-                                <span class="detail-value"><?php echo sanitizeInput($registrationData['emp_number']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Name:</span>
-                                <span class="detail-value"><?php echo sanitizeInput($registrationData['staff_name']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Number of Attendees:</span>
-                                <span class="detail-value"><?php echo (int)$registrationData['attendee_count']; ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Cinema Hall:</span>
-                                <span class="detail-value"><?php echo sanitizeInput($registrationData['hall_name']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Shift:</span>
-                                <span class="detail-value"><?php echo sanitizeInput($registrationData['shift_name']); ?></span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Selected Seats:</span>
-                                <span class="detail-value seat-numbers">
-                                    <?php 
-                                    $seats = json_decode($registrationData['selected_seats'], true);
-                                    if (is_array($seats)) {
-                                        foreach ($seats as $seat) {
-                                            echo '<span class="seat-tag">' . sanitizeInput($seat) . '</span>';
-                                        }
-                                    }
-                                    ?>
-                                </span>
-                            </div>
-                            
-                            <div class="detail-item">
-                                <span class="detail-label">Registration Time:</span>
-                                <span class="detail-value"><?php echo date('F j, Y \a\t g:i A', strtotime($registrationData['registration_date'])); ?></span>
-                            </div>
+            <div class="confirmation-details">
+                <div class="detail-section">
+                    <h2 class="detail-title">🎬 Movie Details</h2>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Movie:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($settings['movie_name'] ?? 'Movie Night'); ?></span>
                         </div>
-                    </div>
-
-                    <div class="event-card">
-                        <h2 class="details-title">Event Information</h2>
-                        
-                        <div class="event-info">
-                            <div class="event-item">
-                                <span class="event-icon">🎬</span>
-                                <div class="event-content">
-                                    <strong><?php echo sanitizeInput($movieName); ?></strong>
-                                    <p>Exclusive company screening</p>
-                                </div>
-                            </div>
-                            
-                            <div class="event-item">
-                                <span class="event-icon">📅</span>
-                                <div class="event-content">
-                                    <strong><?php echo sanitizeInput($movieDate); ?></strong>
-                                    <p><?php echo sanitizeInput($movieTime); ?></p>
-                                </div>
-                            </div>
-                            
-                            <div class="event-item">
-                                <span class="event-icon">📍</span>
-                                <div class="event-content">
-                                    <strong><?php echo sanitizeInput($movieLocation); ?></strong>
-                                    <p><?php echo sanitizeInput($registrationData['hall_name']); ?></p>
-                                </div>
-                            </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Date:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($settings['movie_date'] ?? 'TBA'); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Time:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($settings['movie_time'] ?? 'TBA'); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Location:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($settings['movie_location'] ?? 'Cinema Complex'); ?></span>
                         </div>
                     </div>
                 </div>
 
-                <div class="important-notes">
-                    <h3 class="notes-title">Important Reminders</h3>
-                    <div class="notes-grid">
-                        <div class="note-item">
-                            <span class="note-icon">⏰</span>
-                            <div class="note-content">
-                                <strong>Arrival Time</strong>
-                                <p>Please arrive at least 15 minutes before the screening time</p>
-                            </div>
+                <div class="detail-section">
+                    <h2 class="detail-title">👤 Registration Details</h2>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Employee ID:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($registrationData['emp_number']); ?></span>
                         </div>
-                        
-                        <div class="note-item">
-                            <span class="note-icon">🎫</span>
-                            <div class="note-content">
-                                <strong>Seat Assignment</strong>
-                                <p>Your seats are reserved. Please proceed directly to your assigned seats</p>
-                            </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Name:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($registrationData['staff_name']); ?></span>
                         </div>
-                        
-                        <div class="note-item">
-                            <span class="note-icon">🍿</span>
-                            <div class="note-content">
-                                <strong>Complimentary Treats</strong>
-                                <p>Popcorn and beverages will be provided at the venue</p>
-                            </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Hall:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($registrationData['hall_name']); ?></span>
                         </div>
-                        
-                        <div class="note-item">
-                            <span class="note-icon">📱</span>
-                            <div class="note-content">
-                                <strong>Contact Support</strong>
-                                <p>For any questions or changes, contact the event organizers</p>
-                            </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Shift:</span>
+                            <span class="detail-value"><?php echo htmlspecialchars($registrationData['shift_name']); ?></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Attendees:</span>
+                            <span class="detail-value"><?php echo $registrationData['attendee_count']; ?></span>
                         </div>
                     </div>
                 </div>
 
-                <div class="confirmation-actions">
-                    <a href="index.php" class="button-primary">Back to Home</a>
-                    <button onclick="window.print()" class="button-secondary">Print Confirmation</button>
+                <div class="detail-section">
+                    <h2 class="detail-title">🎫 Selected Seats</h2>
+                    <div class="seat-display">
+                        <?php foreach ($registrationData['selected_seats'] as $seat): ?>
+                            <span class="seat-badge"><?php echo htmlspecialchars($seat); ?></span>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-text">
-                    <p><?php echo sanitizeInput($footerText); ?></p>
+                <div class="reminder-section">
+                    <div class="reminder-box">
+                        <div class="reminder-icon">🎬</div>
+                        <p class="reminder-text">
+                            Please arrive at least 15 minutes before the movie starts to ensure a smooth seating experience.
+                        </p>
+                    </div>
                 </div>
             </div>
+
+            <div class="confirmation-actions">
+                <a href="index.php" class="btn btn-primary">Back to Home</a>
+                <button onclick="window.print()" class="btn btn-secondary">Print Confirmation</button>
+            </div>
         </div>
-    </footer>
+    </div>
 
     <style>
-        .confirmation-section {
-            min-height: 80vh;
-            padding: 2rem 0;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        }
-
         .confirmation-container {
             max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
+            margin: 2rem auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 3rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
         }
 
         .confirmation-header {
@@ -238,39 +144,40 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         .confirmation-title {
             font-size: 2.5rem;
             font-weight: 700;
-            color: var(--primary-color);
+            color: #FFD700;
             margin-bottom: 0.5rem;
         }
 
         .confirmation-subtitle {
-            font-size: 1.2rem;
             color: #94a3b8;
+            font-size: 1.1rem;
         }
 
         .confirmation-details {
-            display: grid;
-            gap: 2rem;
             margin-bottom: 3rem;
         }
 
-        .details-card, .event-card {
-            background: rgba(255, 255, 255, 0.05);
+        .detail-section {
+            background: rgba(255, 255, 255, 0.03);
             border-radius: 12px;
             padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .details-title {
+        .detail-title {
             font-size: 1.5rem;
             font-weight: 600;
-            color: #ffffff;
+            color: #FFD700;
             margin-bottom: 1.5rem;
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .detail-grid {
             display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 1rem;
         }
 
@@ -296,94 +203,45 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             color: #ffffff;
         }
 
-        .seat-numbers {
+        .seat-display {
             display: flex;
-            gap: 0.5rem;
             flex-wrap: wrap;
+            gap: 0.5rem;
         }
 
-        .seat-tag {
-            background: var(--primary-color);
+        .seat-badge {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
             color: #000;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             font-weight: 600;
+            font-size: 1.1rem;
         }
 
-        .event-info {
-            display: grid;
-            gap: 1.5rem;
+        .reminder-section {
+            margin-top: 2rem;
         }
 
-        .event-item {
+        .reminder-box {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 165, 0, 0.1));
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
             display: flex;
             align-items: center;
             gap: 1rem;
         }
 
-        .event-icon {
+        .reminder-icon {
             font-size: 2rem;
-            width: 3rem;
-            text-align: center;
+            flex-shrink: 0;
         }
 
-        .event-content strong {
-            color: #ffffff;
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-
-        .event-content p {
-            color: #94a3b8;
+        .reminder-text {
+            color: #FFD700;
+            font-weight: 500;
+            font-size: 1.1rem;
             margin: 0;
-        }
-
-        .important-notes {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 3rem;
-        }
-
-        .notes-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #ffffff;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-
-        .notes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .note-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .note-icon {
-            font-size: 1.5rem;
-            width: 2rem;
-            text-align: center;
-            margin-top: 0.25rem;
-        }
-
-        .note-content strong {
-            color: var(--primary-color);
-            display: block;
-            margin-bottom: 0.25rem;
-        }
-
-        .note-content p {
-            color: #94a3b8;
-            margin: 0;
-            font-size: 0.9rem;
         }
 
         .confirmation-actions {
@@ -393,54 +251,63 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             flex-wrap: wrap;
         }
 
-        .button-primary, .button-secondary {
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
+        .btn {
+            padding: 1rem 2rem;
             border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
         }
 
-        .button-primary {
-            background: var(--primary-color);
+        .btn-primary {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
             color: #000;
         }
 
-        .button-primary:hover {
-            background: #e6c200;
+        .btn-primary:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 215, 0, 0.3);
         }
 
-        .button-secondary {
-            background: transparent;
-            color: #ffffff;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .button-secondary:hover {
+        .btn-secondary {
             background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.5);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
         }
 
         @media (max-width: 768px) {
             .confirmation-container {
-                padding: 1rem;
+                margin: 1rem;
+                padding: 2rem;
             }
 
             .confirmation-title {
                 font-size: 2rem;
             }
 
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
             .detail-item {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 0.5rem;
+                gap: 0.25rem;
             }
 
-            .notes-grid {
-                grid-template-columns: 1fr;
+            .reminder-box {
+                flex-direction: column;
+                text-align: center;
             }
 
             .confirmation-actions {
@@ -454,21 +321,14 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                 color: black !important;
             }
 
-            .header, .footer {
-                display: none;
-            }
-
-            .confirmation-section {
-                background: white !important;
-            }
-
-            .details-card, .event-card, .important-notes {
+            .confirmation-container {
                 background: white !important;
                 border: 1px solid #ccc !important;
+                box-shadow: none !important;
             }
 
             .confirmation-actions {
-                display: none;
+                display: none !important;
             }
         }
     </style>

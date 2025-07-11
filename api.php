@@ -48,6 +48,9 @@ try {
         case 'search_registrations':
             handleSearchRegistrations($pdo);
             break;
+        case 'get_smart_suggestions':
+            handleSmartSeatSuggestions($pdo);
+            break;
         default:
             throw new Exception('Invalid action: ' . $action);
     }
@@ -82,7 +85,35 @@ function handleGetSeats($pdo) {
             throw new Exception('Invalid hall or shift combination');
         }
         
-        // Get seats for this hall and shift combination
+        // Check if seats exist for this hall and shift combination
+        $seatCountStmt = $pdo->prepare("
+            SELECT COUNT(*) as seat_count 
+            FROM seats 
+            WHERE hall_id = ? AND shift_id = ?
+        ");
+        $seatCountStmt->execute([$hallId, $shiftId]);
+        $seatCount = $seatCountStmt->fetchColumn();
+        
+        // If no seats exist, create them using the stored procedure
+        if ($seatCount == 0) {
+            try {
+                $createStmt = $pdo->prepare("CALL createSeatsForHallShift(?, ?, ?)");
+                $createStmt->execute([$hallId, $shiftId, $shift['shift_name']]);
+                
+                // Verify seats were created
+                $seatCountStmt->execute([$hallId, $shiftId]);
+                $newSeatCount = $seatCountStmt->fetchColumn();
+                
+                if ($newSeatCount == 0) {
+                    throw new Exception('Failed to create seats for this hall and shift combination');
+                }
+            } catch (Exception $e) {
+                error_log("Seat creation error: " . $e->getMessage());
+                throw new Exception('Failed to initialize seats: ' . $e->getMessage());
+            }
+        }
+        
+        // Get all seats for this hall and shift combination
         $stmt = $pdo->prepare("
             SELECT id, seat_number, row_letter, seat_position, status 
             FROM seats 
@@ -91,15 +122,6 @@ function handleGetSeats($pdo) {
         ");
         $stmt->execute([$hallId, $shiftId]);
         $seats = $stmt->fetchAll();
-        
-        // If no seats exist for this combination, create them dynamically
-        if (empty($seats)) {
-            createSeatsForHallAndShift($pdo, $hallId, $shiftId, $shift['shift_name']);
-            
-            // Try to get seats again after creation
-            $stmt->execute([$hallId, $shiftId]);
-            $seats = $stmt->fetchAll();
-        }
         
         if (empty($seats)) {
             throw new Exception('No seats available for this hall and shift combination');
@@ -113,70 +135,9 @@ function handleGetSeats($pdo) {
         ]);
         
     } catch (Exception $e) {
+        error_log("Seat loading error: " . $e->getMessage());
         throw new Exception("Failed to load seats: " . $e->getMessage());
     }
-}
-
-function createSeatsForHallAndShift($pdo, $hallId, $shiftId, $shiftName) {
-    try {
-        $pdo->beginTransaction();
-        
-        if ($hallId == 1) {
-            // CINEMA HALL 1 - Standard layout
-            $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L'];
-            
-            foreach ($rows as $rowLetter) {
-                if ($shiftId == 1) {
-                    // Normal Shift gets seats 1-6
-                    for ($position = 1; $position <= 6; $position++) {
-                        $seatNumber = $rowLetter . $position;
-                        insertSeat($pdo, $hallId, $shiftId, $seatNumber, $rowLetter, $position);
-                    }
-                } else if ($shiftId == 2) {
-                    // Crew C (Day Shift) gets seats 7-11
-                    for ($position = 7; $position <= 11; $position++) {
-                        $seatNumber = $rowLetter . $position;
-                        insertSeat($pdo, $hallId, $shiftId, $seatNumber, $rowLetter, $position);
-                    }
-                }
-            }
-            
-        } else if ($hallId == 2) {
-            // CINEMA HALL 2 - Special layout based on crew assignments
-            // 13 rows A through M, skipping I (as shown in the image)
-            $rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M'];
-            
-            foreach ($rows as $rowLetter) {
-                if (strpos($shiftName, 'CREW A') !== false) {
-                    // CREW A (OFF/REST DAY) gets seats 1-6 in each row (left section)
-                    for ($position = 1; $position <= 6; $position++) {
-                        $seatNumber = $rowLetter . $position;
-                        insertSeat($pdo, $hallId, $shiftId, $seatNumber, $rowLetter, $position);
-                    }
-                } else if (strpos($shiftName, 'CREW B') !== false) {
-                    // CREW B (OFF/REST DAY) gets seats 7-12 in each row (right section)
-                    for ($position = 7; $position <= 12; $position++) {
-                        $seatNumber = $rowLetter . $position;
-                        insertSeat($pdo, $hallId, $shiftId, $seatNumber, $rowLetter, $position);
-                    }
-                }
-            }
-        }
-        
-        $pdo->commit();
-        
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        throw new Exception("Failed to create seats: " . $e->getMessage());
-    }
-}
-
-function insertSeat($pdo, $hallId, $shiftId, $seatNumber, $rowLetter, $position) {
-    $stmt = $pdo->prepare("
-        INSERT INTO seats (hall_id, shift_id, seat_number, row_letter, seat_position, status, created_at) 
-        VALUES (?, ?, ?, ?, ?, 'available', NOW())
-    ");
-    $stmt->execute([$hallId, $shiftId, $seatNumber, $rowLetter, $position]);
 }
 
 function handleRegistration($pdo) {
@@ -189,54 +150,36 @@ function handleRegistration($pdo) {
         $shiftId = filter_var($_POST['shift_id'] ?? '', FILTER_VALIDATE_INT);
         $selectedSeatsJson = $_POST['selected_seats'] ?? '';
         
-        // Validation
-        if (!validateEmployeeNumber($empNumber)) {
-            throw new Exception('Invalid employee number format');
+        // Basic validation
+        if (empty($empNumber) || strlen($empNumber) < 2) {
+            throw new Exception('Employee number must be at least 2 characters');
         }
         
-        if (!validateName($staffName)) {
-            throw new Exception('Invalid name format');
+        if (empty($staffName) || strlen($staffName) < 2) {
+            throw new Exception('Full name must be at least 2 characters');
         }
         
-        // Set different max attendees for different halls
-        $maxAttendees = ($hallId == 2) ? 3 : MAX_ATTENDEES_PER_BOOKING;
-        
-        if (!$attendeeCount || $attendeeCount < 1 || $attendeeCount > $maxAttendees) {
-            throw new Exception('Invalid attendee count. Maximum ' . $maxAttendees . ' attendees allowed for this hall.');
+        if (!$attendeeCount || $attendeeCount < 1 || $attendeeCount > 3) {
+            throw new Exception('Invalid attendee count. Maximum 3 attendees allowed.');
         }
         
         if (!$hallId || !$shiftId) {
-            throw new Exception('Missing required fields');
+            throw new Exception('Please select a shift');
         }
         
         $selectedSeats = json_decode($selectedSeatsJson, true);
         if (!is_array($selectedSeats) || count($selectedSeats) !== $attendeeCount) {
-            throw new Exception('Invalid seat selection');
+            throw new Exception('Please select exactly ' . $attendeeCount . ' seat(s)');
         }
         
         // Check if registration is enabled
-        $settingStmt = $pdo->prepare("SELECT setting_value FROM event_settings WHERE setting_key = 'registration_enabled'");
-        $settingStmt->execute();
-        $regEnabled = $settingStmt->fetchColumn();
-        
-        if ($regEnabled !== 'true') {
+        if (!isRegistrationEnabled()) {
             throw new Exception('Registration is currently disabled');
         }
         
-        // Check if employee exists and is active
-        $empStmt = $pdo->prepare("SELECT id, full_name FROM employees WHERE emp_number = ? AND is_active = 1");
-        $empStmt->execute([$empNumber]);
-        $employee = $empStmt->fetch();
-        
-        if (!$employee) {
-            throw new Exception('Employee number not found or inactive');
-        }
-        
-        // Check if employee already registered
-        $checkStmt = $pdo->prepare("SELECT id FROM registrations WHERE emp_number = ? AND status = 'active'");
-        $checkStmt->execute([$empNumber]);
-        if ($checkStmt->fetch()) {
-            throw new Exception('Employee already registered for this event');
+        // Check if employee number already registered
+        if (isEmployeeRegistered($empNumber)) {
+            throw new Exception('This employee number is already registered for this event');
         }
         
         // Verify hall and shift combination
@@ -252,61 +195,61 @@ function handleRegistration($pdo) {
         if (!$hallShift) {
             throw new Exception('Invalid hall and shift combination');
         }
-
-        // Use the hall-specific max attendees
-        $hallMaxAttendees = ($hallId == 2) ? 4 : $hallShift['max_attendees_per_booking'];
-        if ($attendeeCount > $hallMaxAttendees) {
-            throw new Exception("Maximum {$hallMaxAttendees} attendees allowed for this cinema hall");
+        
+        // Validate that selected seats are available
+        $placeholders = str_repeat('?,', count($selectedSeats) - 1) . '?';
+        $seatCheckStmt = $pdo->prepare("
+            SELECT COUNT(*) as available_count 
+            FROM seats 
+            WHERE hall_id = ? AND shift_id = ? AND seat_number IN ($placeholders) AND status = 'available'
+        ");
+        $seatCheckParams = array_merge([$hallId, $shiftId], $selectedSeats);
+        $seatCheckStmt->execute($seatCheckParams);
+        $availableCount = $seatCheckStmt->fetchColumn();
+        
+        if ($availableCount != count($selectedSeats)) {
+            throw new Exception('One or more selected seats are no longer available. Please refresh and try again.');
         }
         
-        // Validate seat adjacency (server-side validation)
-        if (!validateSeatAdjacency($pdo, $selectedSeats, $hallId, $shiftId)) {
-            throw new Exception('Selected seats must be adjacent to each other with no gaps');
-        }
-        
-        // Begin transaction
+        // Begin transaction for seat reservation
         $pdo->beginTransaction();
         
         try {
-            // Verify seats are available and reserve them
-            $seatIds = [];
-            foreach ($selectedSeats as $seatNumber) {
-                $seatStmt = $pdo->prepare("
-                    SELECT id FROM seats 
-                    WHERE hall_id = ? AND shift_id = ? AND seat_number = ? AND status = 'available'
-                    FOR UPDATE
-                ");
-                $seatStmt->execute([$hallId, $shiftId, $seatNumber]);
-                $seat = $seatStmt->fetch();
-                
-                if (!$seat) {
-                    throw new Exception("Seat {$seatNumber} is no longer available");
-                }
-                
-                $seatIds[] = $seat['id'];
-            }
-            
-            // Mark seats as occupied
-            foreach ($seatIds as $seatId) {
-                $updateSeatStmt = $pdo->prepare("UPDATE seats SET status = 'occupied', updated_at = NOW() WHERE id = ?");
-                $updateSeatStmt->execute([$seatId]);
-            }
-            
-            // Create registration
-            $registrationStmt = $pdo->prepare("
-                INSERT INTO registrations (
-                    emp_number, staff_name, attendee_count, hall_id, shift_id, 
-                    selected_seats, ip_address, user_agent, status, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+            // Reserve the seats by updating their status
+            $updateSeatStmt = $pdo->prepare("
+                UPDATE seats 
+                SET status = 'occupied', updated_at = NOW() 
+                WHERE hall_id = ? AND shift_id = ? AND seat_number = ? AND status = 'available'
             ");
             
-            $registrationStmt->execute([
+            foreach ($selectedSeats as $seatNumber) {
+                $updateSeatStmt->execute([$hallId, $shiftId, $seatNumber]);
+                if ($updateSeatStmt->rowCount() === 0) {
+                    throw new Exception("Failed to reserve seat {$seatNumber}. It may have been taken by another user.");
+                }
+            }
+            
+            // Create registration record
+            $insertStmt = $pdo->prepare("
+                INSERT INTO registrations (
+                    emp_number, staff_name, attendee_count, hall_id, shift_id,
+                    selected_seats, movie_name, screening_time, ip_address, user_agent, 
+                    status, registration_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+            ");
+            
+            $movieName = getEventSetting('movie_name', 'WD Movie Night');
+            $screeningTime = getEventSetting('screening_time', 'TBA');
+            
+            $insertStmt->execute([
                 $empNumber,
                 $staffName,
                 $attendeeCount,
                 $hallId,
                 $shiftId,
                 json_encode($selectedSeats),
+                $movieName,
+                $screeningTime,
                 $_SERVER['REMOTE_ADDR'] ?? '',
                 $_SERVER['HTTP_USER_AGENT'] ?? ''
             ]);
@@ -315,23 +258,24 @@ function handleRegistration($pdo) {
             
             $pdo->commit();
             
-            // Prepare response data
-            $responseData = [
-                'success' => true,
-                'message' => 'Registration completed successfully',
-                'registration' => [
-                    'id' => $registrationId,
-                    'emp_number' => $empNumber,
-                    'staff_name' => $staffName,
-                    'attendee_count' => $attendeeCount,
-                    'hall_name' => $hallShift['hall_name'],
-                    'shift_name' => $hallShift['shift_name'],
-                    'selected_seats' => $selectedSeats,
-                    'registration_date' => date('Y-m-d H:i:s')
-                ]
+            // Store registration data in session for confirmation page
+            $_SESSION['registration_success'] = true;
+            $_SESSION['registration_data'] = [
+                'id' => $registrationId,
+                'emp_number' => $empNumber,
+                'staff_name' => $staffName,
+                'attendee_count' => $attendeeCount,
+                'hall_name' => $hallShift['hall_name'],
+                'shift_name' => $hallShift['shift_name'],
+                'selected_seats' => $selectedSeats,
+                'registration_date' => date('Y-m-d H:i:s')
             ];
             
-            echo json_encode($responseData);
+            echo json_encode([
+                'success' => true,
+                'message' => 'Registration completed successfully! 🎉',
+                'redirect' => 'confirmation.php'
+            ]);
             
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -339,93 +283,45 @@ function handleRegistration($pdo) {
         }
         
     } catch (Exception $e) {
-        throw new Exception("Registration failed: " . $e->getMessage());
+        error_log("Registration Error: " . $e->getMessage());
+        throw new Exception($e->getMessage());
     }
-}
-
-function validateSeatAdjacency($pdo, $selectedSeats, $hallId, $shiftId) {
-    if (count($selectedSeats) <= 1) {
-        return true; // Single seat or no seats are always valid
-    }
-    
-    // Check if seat separation is allowed
-    $settingStmt = $pdo->prepare("SELECT setting_value FROM event_settings WHERE setting_key = 'allow_seat_separation'");
-    $settingStmt->execute();
-    $allowSeparation = $settingStmt->fetchColumn();
-    
-    if ($allowSeparation === 'true') {
-        return true; // Skip adjacency check if separation is allowed
-    }
-    
-    // Get seat positions for validation
-    $seatPositions = [];
-    foreach ($selectedSeats as $seatNumber) {
-        $stmt = $pdo->prepare("
-            SELECT row_letter, seat_position 
-            FROM seats 
-            WHERE hall_id = ? AND shift_id = ? AND seat_number = ?
-        ");
-        $stmt->execute([$hallId, $shiftId, $seatNumber]);
-        $seat = $stmt->fetch();
-        
-        if (!$seat) {
-            return false; // Seat not found
-        }
-        
-        $seatPositions[] = [
-            'seat_number' => $seatNumber,
-            'row_letter' => $seat['row_letter'],
-            'seat_position' => (int)$seat['seat_position']
-        ];
-    }
-    
-    // Group by row
-    $seatsByRow = [];
-    foreach ($seatPositions as $seat) {
-        $seatsByRow[$seat['row_letter']][] = $seat['seat_position'];
-    }
-    
-    // Check each row has continuous seats
-    foreach ($seatsByRow as $row => $positions) {
-        sort($positions);
-        
-        // Check if positions are continuous
-        for ($i = 1; $i < count($positions); $i++) {
-            if ($positions[$i] - $positions[$i-1] !== 1) {
-                return false; // Gap found
-            }
-        }
-    }
-    
-    return true;
 }
 
 function handleCheckEmployee($pdo) {
     try {
         $empNumber = strtoupper(trim($_POST['emp_number'] ?? ''));
         
-        if (!validateEmployeeNumber($empNumber)) {
-            throw new Exception('Invalid employee number format');
+        if (empty($empNumber)) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Please enter an employee number'
+            ]);
+            return;
         }
         
-        $stmt = $pdo->prepare("SELECT full_name, email, department FROM employees WHERE emp_number = ? AND is_active = 1");
-        $stmt->execute([$empNumber]);
-        $employee = $stmt->fetch();
-        
-        if ($employee) {
+        // Check if already registered
+        if (isEmployeeRegistered($empNumber)) {
             echo json_encode([
-                'success' => true,
-                'employee' => $employee
+                'success' => false,
+                'message' => 'This employee number is already registered'
             ]);
         } else {
             echo json_encode([
-                'success' => false,
-                'message' => 'Employee not found or inactive'
+                'success' => true,
+                'employee' => [
+                    'full_name' => 'Employee',
+                    'email' => null,
+                    'department' => 'General'
+                ]
             ]);
         }
         
     } catch (Exception $e) {
-        throw new Exception("Employee check failed: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'message' => 'Error checking employee: ' . $e->getMessage()
+        ]);
     }
 }
 
@@ -497,6 +393,38 @@ function handleSearchRegistrations($pdo) {
         
     } catch (Exception $e) {
         throw new Exception("Failed to search registrations: " . $e->getMessage());
+    }
+}
+
+function handleSmartSeatSuggestions($pdo) {
+    try {
+        $hallId = filter_var($_POST['hall_id'] ?? '', FILTER_VALIDATE_INT);
+        $shiftId = filter_var($_POST['shift_id'] ?? '', FILTER_VALIDATE_INT);
+        $preferredRow = trim($_POST['preferred_row'] ?? '');
+        $attendeeCount = filter_var($_POST['attendee_count'] ?? '', FILTER_VALIDATE_INT);
+        
+        if (!$hallId || !$shiftId || !$preferredRow || !$attendeeCount) {
+            throw new Exception('Missing required parameters');
+        }
+        
+        // Simple seat suggestion logic
+        $stmt = $pdo->prepare("
+            SELECT seat_number, row_letter, seat_position 
+            FROM seats 
+            WHERE hall_id = ? AND shift_id = ? AND row_letter = ? AND status = 'available'
+            ORDER BY seat_position
+            LIMIT ?
+        ");
+        $stmt->execute([$hallId, $shiftId, $preferredRow, $attendeeCount]);
+        $suggestions = $stmt->fetchAll();
+        
+        echo json_encode([
+            'success' => true,
+            'suggestions' => $suggestions
+        ]);
+        
+    } catch (Exception $e) {
+        throw new Exception("Failed to get seat suggestions: " . $e->getMessage());
     }
 }
 ?>

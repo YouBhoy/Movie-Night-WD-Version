@@ -1,10 +1,17 @@
 <?php
 require_once 'config.php';
 
-// Check admin access
-if (!isset($_GET['key']) || $_GET['key'] !== ADMIN_KEY) {
-    http_response_code(403);
-    die('Access denied. Invalid admin key.');
+// Check if user is logged in
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+    header('Location: admin-login.php');
+    exit;
+}
+
+// Check session timeout (1 hour)
+if (isset($_SESSION['admin_login_time']) && (time() - $_SESSION['admin_login_time']) > 3600) {
+    session_destroy();
+    header('Location: admin-login.php?timeout=1');
+    exit;
 }
 
 $pdo = getDBConnection();

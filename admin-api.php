@@ -83,16 +83,9 @@ function handleUpdateSetting($pdo) {
         $updateStmt->execute([$settingValue, $settingKey]);
         
         // Log admin activity
-        $adminUser = $_SESSION['admin_username'] ?? 'admin';
-        $logStmt = $pdo->prepare("
-            INSERT INTO admin_activity_log (admin_user, action, target_type, details, ip_address, user_agent, created_at) 
-            VALUES (?, 'update_setting', 'event_settings', ?, ?, ?, NOW())
-        ");
-        $logStmt->execute([
-            $adminUser,
-            json_encode(['setting_key' => $settingKey, 'new_value' => $settingValue]),
-            $_SERVER['REMOTE_ADDR'] ?? '',
-            $_SERVER['HTTP_USER_AGENT'] ?? ''
+        logAdminActivity('update_setting', 'event_settings', null, [
+            'setting_key' => $settingKey, 
+            'new_value' => $settingValue
         ]);
         
         echo json_encode([
@@ -187,60 +180,26 @@ function handleDeleteRegistration($pdo) {
             throw new Exception('Registration not found or already cancelled');
         }
         
-        $pdo->beginTransaction();
+        // Use stored procedure to free seats
+        $result = releaseSeats($registrationId);
         
-        try {
-            // Free up the seats
-            $selectedSeats = json_decode($registration['selected_seats'], true);
-            if (is_array($selectedSeats)) {
-                foreach ($selectedSeats as $seatNumber) {
-                    $seatStmt = $pdo->prepare("
-                        UPDATE seats 
-                        SET status = 'available', updated_at = NOW() 
-                        WHERE hall_id = ? AND shift_id = ? AND seat_number = ?
-                    ");
-                    $seatStmt->execute([$registration['hall_id'], $registration['shift_id'], $seatNumber]);
-                }
-            }
-            
-            // Mark registration as cancelled
-            $cancelStmt = $pdo->prepare("
-                UPDATE registrations 
-                SET status = 'cancelled', updated_at = NOW() 
-                WHERE id = ?
-            ");
-            $cancelStmt->execute([$registrationId]);
-            
-            // Log admin activity
-            $adminUser = $_SESSION['admin_username'] ?? 'admin';
-            $logStmt = $pdo->prepare("
-                INSERT INTO admin_activity_log (admin_user, action, target_type, target_id, details, ip_address, user_agent, created_at) 
-                VALUES (?, 'delete_registration', 'registrations', ?, ?, ?, ?, NOW())
-            ");
-            $logStmt->execute([
-                $adminUser,
-                $registrationId,
-                json_encode([
-                    'emp_number' => $registration['emp_number'],
-                    'staff_name' => $registration['staff_name'],
-                    'hall_name' => $registration['hall_name'],
-                    'shift_name' => $registration['shift_name']
-                ]),
-                $_SERVER['REMOTE_ADDR'] ?? '',
-                $_SERVER['HTTP_USER_AGENT'] ?? ''
-            ]);
-            
-            $pdo->commit();
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Registration cancelled successfully'
-            ]);
-            
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            throw $e;
+        if ($result === false) {
+            throw new Exception('Failed to release seats');
         }
+        
+        // Log admin activity
+        logAdminActivity('delete_registration', 'registrations', $registrationId, [
+            'emp_number' => $result['emp_number'],
+            'staff_name' => $registration['staff_name'],
+            'hall_name' => $registration['hall_name'],
+            'shift_name' => $registration['shift_name'],
+            'seats_released' => $result['released_seats']
+        ]);
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Registration cancelled successfully'
+        ]);
         
     } catch (Exception $e) {
         throw new Exception("Failed to delete registration: " . $e->getMessage());
@@ -266,16 +225,8 @@ function handleToggleRegistration($pdo) {
         $updateStmt->execute([$newStatus]);
         
         // Log admin activity
-        $adminUser = $_SESSION['admin_username'] ?? 'admin';
-        $logStmt = $pdo->prepare("
-            INSERT INTO admin_activity_log (admin_user, action, target_type, details, ip_address, user_agent, created_at) 
-            VALUES (?, 'toggle_registration', 'event_settings', ?, ?, ?, NOW())
-        ");
-        $logStmt->execute([
-            $adminUser,
-            json_encode(['registration_enabled' => $newStatus]),
-            $_SERVER['REMOTE_ADDR'] ?? '',
-            $_SERVER['HTTP_USER_AGENT'] ?? ''
+        logAdminActivity('toggle_registration', 'event_settings', null, [
+            'registration_enabled' => $newStatus
         ]);
         
         echo json_encode([

@@ -329,12 +329,13 @@ body {
   padding: 2rem;
   margin-bottom: 1rem;
   position: relative;
+  padding-bottom: 4rem; /* Increased bottom padding for screen positioning */
 }
 
 .seat-map::after {
   content: "SCREEN";
   position: absolute;
-  bottom: 1rem;
+  bottom: 1.5rem; /* Moved down from 1rem to 1.5rem */
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, #ffd700, #ffed4e);
@@ -943,11 +944,12 @@ body {
   }
 
   .hero-section {
-    padding: 6rem 0 3rem;
+    padding: 8rem 0 3rem; /* Increased top padding to prevent title cutoff */
   }
 
   .hero-title {
     font-size: 2.5rem;
+    margin-top: 1rem; /* Add extra margin to ensure visibility */
   }
 
   .movie-details {
@@ -962,6 +964,7 @@ body {
 
   .seat-map {
     padding: 1rem;
+    padding-bottom: 3rem;
   }
 
   .seat {
@@ -1000,8 +1003,13 @@ body {
 }
 
 @media (max-width: 480px) {
+  .hero-section {
+    padding: 9rem 0 3rem; /* Even more padding for smaller screens */
+  }
+
   .hero-title {
     font-size: 2rem;
+    margin-top: 1.5rem; /* Additional margin for very small screens */
   }
 
   .section-title {
@@ -1074,5 +1082,46 @@ body {
 
   .registration-section {
     background: white !important;
+  }
+}
+
+/* Update the hero section for better mobile display */
+.hero-section {
+  text-align: center;
+  padding: 6rem 2rem 4rem;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%);
+  border-radius: 20px;
+  margin-bottom: 3rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 8rem 1rem 3rem; /* Increased top padding for mobile */
+    margin-bottom: 2rem;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    margin-top: 1rem; /* Add extra margin for better visibility */
+  }
+
+  .hero-subtitle {
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-section {
+    padding: 9rem 1rem 2rem; /* Even more padding for small phones */
+  }
+
+  .hero-title {
+    font-size: 2rem;
+    margin-top: 1.5rem;
   }
 }

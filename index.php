@@ -22,9 +22,7 @@ while ($row = $settingsStmt->fetch()) {
 }
 
 // Check if registration is enabled
-$regEnabledStmt = $pdo->prepare("SELECT setting_value FROM event_settings WHERE setting_key = 'registration_enabled'");
-$regEnabledStmt->execute();
-$registrationEnabled = $regEnabledStmt->fetchColumn() === 'true';
+$registrationEnabled = isRegistrationEnabled();
 
 // Generate CSRF token
 $csrfToken = generateCSRFToken();
@@ -55,18 +53,26 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             --secondary-color: <?php echo sanitizeInput($secondaryColor); ?>;
         }
         
-        /* Sticky Header Animation */
-        .header {
-            transform: translateY(0);
-            transition: transform 0.3s ease-in-out;
+        /* Enhanced Seat Selection Styling */
+        .seat.selected {
+            background: #22c55e !important;
+            border-color: #16a34a !important;
+            color: white !important;
         }
         
-        .header.hidden {
-            transform: translateY(-100%);
+        .seat.suggested {
+            background: rgba(255, 215, 0, 0.4) !important;
+            border-color: #ffd700 !important;
+            animation: pulse 1.5s infinite;
         }
         
-        /* Smart Suggestion Modal */
-        .suggestion-modal {
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Non-Adjacent Warning Modal */
+        .non-adjacent-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -80,58 +86,76 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             backdrop-filter: blur(5px);
         }
         
-        .suggestion-content {
+        .non-adjacent-content {
             background: rgba(26, 26, 46, 0.95);
             border-radius: 16px;
-            max-width: 500px;
+            max-width: 450px;
             width: 90%;
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
         }
         
-        .suggestion-header {
+        .non-adjacent-header {
             padding: 1.5rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
         }
         
-        .suggestion-header h3 {
-            color: #ffd700;
+        .non-adjacent-header h3 {
+            color: #f59e0b;
             font-size: 1.25rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
         }
         
-        .suggestion-body {
+        .non-adjacent-body {
             padding: 1.5rem;
             text-align: center;
         }
         
-        .suggestion-body p {
+        .non-adjacent-body p {
             color: #cbd5e1;
             margin-bottom: 1.5rem;
             line-height: 1.6;
         }
         
-        .suggestion-seats {
-            background: rgba(255, 215, 0, 0.1);
-            border: 1px solid rgba(255, 215, 0, 0.3);
+        .selected-seats-preview {
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 8px;
             padding: 1rem;
-            margin-bottom: 1.5rem;
+            margin: 1rem 0;
         }
         
-        .suggestion-seats strong {
+        .selected-seats-preview h4 {
             color: #ffd700;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
         }
         
-        .suggestion-actions {
+        .seats-preview-list {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .preview-seat {
+            background: #22c55e;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .non-adjacent-actions {
             display: flex;
             gap: 1rem;
             justify-content: center;
+            margin-top: 1.5rem;
         }
         
-        .suggestion-btn {
+        .non-adjacent-btn {
             padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 8px;
@@ -140,44 +164,116 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             transition: all 0.3s ease;
         }
         
-        .suggestion-btn.accept {
-            background: #ffd700;
-            color: #000;
+        .non-adjacent-btn.confirm {
+            background: #22c55e;
+            color: white;
         }
         
-        .suggestion-btn.accept:hover {
-            background: #e6c200;
-            transform: translateY(-2px);
+        .non-adjacent-btn.confirm:hover {
+            background: #16a34a;
         }
         
-        .suggestion-btn.decline {
+        .non-adjacent-btn.cancel {
             background: rgba(255, 255, 255, 0.1);
             color: #ffffff;
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
-        .suggestion-btn.decline:hover {
+        .non-adjacent-btn.cancel:hover {
             background: rgba(255, 255, 255, 0.2);
         }
         
-        /* Row highlighting for suggestions */
-        .seat-row.suggested {
-            background: rgba(255, 215, 0, 0.1);
+        /* Gap Warning Modal */
+        .gap-warning-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500;
+            backdrop-filter: blur(5px);
+        }
+        
+        .gap-warning-content {
+            background: rgba(26, 26, 46, 0.95);
+            border-radius: 16px;
+            max-width: 450px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .gap-warning-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        
+        .gap-warning-header h3 {
+            color: #f59e0b;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .gap-warning-body {
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .gap-warning-body p {
+            color: #cbd5e1;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+        
+        .gap-warning-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        .gap-warning-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
             border-radius: 8px;
-            padding: 0.5rem;
-            margin: 0.25rem 0;
-            border: 2px solid rgba(255, 215, 0, 0.3);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
         
-        .seat.suggested-seat {
-            background: rgba(255, 215, 0, 0.3) !important;
-            border-color: #ffd700 !important;
-            animation: pulse 1.5s infinite;
+        .gap-warning-btn.confirm {
+            background: #f59e0b;
+            color: #000;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+        .gap-warning-btn.confirm:hover {
+            background: #d97706;
+        }
+        
+        .gap-warning-btn.cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gap-warning-btn.cancel:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .flexible-selection-info {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -243,6 +339,10 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             <div class="registration-container">
                 <!-- Registration Form -->
                 <div class="registration-form-container">
+                    <div class="open-access-notice">
+                        🎉 <strong>Open Registration!</strong> Anyone can register - just enter any employee number (e.g., EMP001, WD123, etc.) and your name to get started!
+                    </div>
+                    
                     <form id="registrationForm" class="registration-form">
                         <input type="hidden" name="csrf_token" value="<?php echo $csrfToken; ?>">
                         <input type="hidden" name="hall_id" id="hidden_hall_id">
@@ -250,10 +350,10 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                         <div class="form-group">
                             <label for="emp_number" class="form-label">Employee Number *</label>
                             <input type="text" id="emp_number" name="emp_number" class="form-control" 
-                                   required pattern="[A-Z0-9]{3,20}" 
-                                   placeholder="e.g., WD001" 
-                                   title="Employee number should be 3-20 characters, letters and numbers only">
-                            <div class="form-help">Enter your Western Digital employee number</div>
+                                   required 
+                                   placeholder="e.g., EMP001, WD123, USER456" 
+                                   title="Enter any unique identifier">
+                            <div class="form-help open-access">Enter any unique employee number or identifier</div>
                         </div>
 
                         <div class="form-group">
@@ -274,7 +374,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                                 </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="form-help">Your cinema hall will be automatically assigned based on your shift</div>
+                            <div class="form-help">Choose any shift - your cinema hall will be assigned automatically</div>
                         </div>
 
                         <div class="form-group" id="hall_display" style="display: none;">
@@ -289,15 +389,14 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                                 <option value="1">1 person</option>
                                 <option value="2">2 people</option>
                                 <option value="3">3 people</option>
-                                <option value="4" id="option_4" style="display: none;">4 people</option>
                             </select>
                             <div class="form-help" id="attendee_help">Maximum 3 attendees per registration</div>
                         </div>
 
                         <div class="form-group seat-selection-group" style="display: none;">
                             <label class="form-label">Select Your Seats *</label>
-                            <div class="seat-selection-info">
-                                <p><strong>Important:</strong> Please select seats next to each other. No gaps allowed between your selected seats.</p>
+                            <div class="flexible-selection-info">
+                                <strong>🎯 Flexible Seat Selection:</strong> Click to select your seats. We prioritize side-by-side seating, but you can choose nearby seats if needed. The system will confirm your selection if seats aren't adjacent.
                             </div>
                             <div id="seatMap" class="seat-map">
                                 <!-- Seat map will be loaded dynamically -->
@@ -316,8 +415,8 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                                     <span>Selected</span>
                                 </div>
                                 <div class="legend-item">
-                                    <div class="seat-demo blocked"></div>
-                                    <span>Blocked</span>
+                                    <div class="seat-demo suggested"></div>
+                                    <span>Suggested</span>
                                 </div>
                             </div>
                             <div id="selectedSeats" class="selected-seats-display"></div>
@@ -346,12 +445,35 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     <div class="info-card">
                         <h3 class="info-title">Registration Guidelines</h3>
                         <ul class="info-list">
-                            <li>Each employee can register only once</li>
-                            <li>Maximum attendees: 3 for Hall 1, 4 for Hall 2</li>
-                            <li>Select seats next to each other (no gaps)</li>
+                            <li>Open to everyone - no employee verification required</li>
+                            <li>Each employee number can register only once</li>
+                            <li>Maximum 3 attendees per registration (both halls)</li>
+                            <li><strong>Flexible seat selection with smart suggestions</strong></li>
                             <li>Cinema hall assigned automatically based on shift</li>
                             <li>Please arrive 15 minutes before screening time</li>
                         </ul>
+                    </div>
+
+                    <div class="info-card">
+                        <h3 class="info-title">Enhanced Seat Selection</h3>
+                        <div class="hall-assignment-info">
+                            <div class="assignment-row">
+                                <span class="assignment-label">🎯 Flexible Selection:</span>
+                                <div class="assignment-shifts">
+                                    <span>• Prioritizes side-by-side seating</span>
+                                    <span>• Allows nearby seats when needed</span>
+                                    <span>• Confirms non-adjacent selections</span>
+                                </div>
+                            </div>
+                            <div class="assignment-row">
+                                <span class="assignment-label">⚠️ Smart Warnings:</span>
+                                <div class="assignment-shifts">
+                                    <span>• Warns about potential seat gaps</span>
+                                    <span>• Suggests better seating options</span>
+                                    <span>• Flexible for real-life needs</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="info-card">
@@ -370,34 +492,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                                 <div class="assignment-shifts">
                                     <span>• Crew A (Off/Rest Day)</span>
                                     <span>• Crew B (Off/Rest Day)</span>
-                                    <span>• Max 4 attendees</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="info-card">
-                        <h3 class="info-title">Event Details</h3>
-                        <div class="event-details">
-                            <div class="detail-row">
-                                <span class="detail-icon">🎬</span>
-                                <div class="detail-content">
-                                    <strong><?php echo sanitizeInput($movieName); ?></strong>
-                                    <p>Exclusive company screening</p>
-                                </div>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-icon">📅</span>
-                                <div class="detail-content">
-                                    <strong><?php echo sanitizeInput($movieDate); ?></strong>
-                                    <p><?php echo sanitizeInput($movieTime); ?></p>
-                                </div>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-icon">📍</span>
-                                <div class="detail-content">
-                                    <strong><?php echo sanitizeInput($movieLocation); ?></strong>
-                                    <p>Multiple cinema halls available</p>
+                                    <span>• Max 3 attendees</span>
                                 </div>
                             </div>
                         </div>
@@ -420,13 +515,13 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title">About This Event</h2>
-                <p class="section-subtitle">An exclusive movie experience for WD employees and their families</p>
+                <p class="section-subtitle">An open movie experience for everyone</p>
             </div>
             
             <div class="about-content">
                 <div class="about-text">
                     <p><?php echo sanitizeInput($eventDescription); ?></p>
-                    <p>This exclusive screening is part of Western Digital's employee engagement initiatives, designed to bring our team together for a memorable entertainment experience.</p>
+                    <p>This open screening welcomes everyone to join us for a memorable entertainment experience.</p>
                 </div>
                 
                 <div class="about-features">
@@ -439,7 +534,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                         <div class="feature-item">
                             <div class="feature-icon">👨‍👩‍👧‍👦</div>
                             <h3>Family Friendly</h3>
-                            <p>Bring your family members and enjoy quality time together outside of work</p>
+                            <p>Bring your family members and enjoy quality time together</p>
                         </div>
                         <div class="feature-item">
                             <div class="feature-icon">🎁</div>
@@ -448,8 +543,8 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                         </div>
                         <div class="feature-item">
                             <div class="feature-icon">🤝</div>
-                            <h3>Team Building</h3>
-                            <p>Connect with colleagues in a relaxed, fun environment outside the office</p>
+                            <h3>Open Community</h3>
+                            <p>Connect with others in a relaxed, fun environment</p>
                         </div>
                     </div>
                 </div>
@@ -468,7 +563,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     <a href="#" class="footer-link">Privacy Policy</a>
                     <a href="#" class="footer-link">Terms of Service</a>
                     <a href="#" class="footer-link">Contact Support</a>
-                    <a href="admin.php?key=<?php echo ADMIN_KEY; ?>" class="footer-link admin-link">Admin</a>
+                    <a href="admin-login.php" class="footer-link admin-link">Admin Login</a>
                 </div>
             </div>
         </div>
@@ -495,7 +590,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                 <div id="registrationDetails"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="button-primary" onclick="closeModal('successModal')">Close</button>
+                <button type="button" class="button-primary" onclick="window.location.href='confirmation.php'">View Confirmation</button>
             </div>
         </div>
     </div>
@@ -517,20 +612,39 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         </div>
     </div>
 
-    <!-- Smart Suggestion Modal -->
-    <div id="suggestionModal" class="suggestion-modal">
-        <div class="suggestion-content">
-            <div class="suggestion-header">
-                <h3>🎯 Smart Seat Suggestion</h3>
+    <!-- Non-Adjacent Selection Modal -->
+    <div id="nonAdjacentModal" class="non-adjacent-modal">
+        <div class="non-adjacent-content">
+            <div class="non-adjacent-header">
+                <h3>⚠️ Non-Adjacent Seats</h3>
             </div>
-            <div class="suggestion-body">
-                <p id="suggestionMessage">Row doesn't have enough consecutive seats.</p>
-                <div class="suggestion-seats" id="suggestionSeats">
-                    <strong>Suggested seats:</strong> <span id="suggestedSeatsList"></span>
+            <div class="non-adjacent-body">
+                <p>Some of your seats are not side-by-side. Do you want to continue with this selection?</p>
+                <div class="selected-seats-preview">
+                    <h4>Your Selected Seats:</h4>
+                    <div class="seats-preview-list" id="nonAdjacentSeatsPreview">
+                        <!-- Dynamic seat preview will be inserted here -->
+                    </div>
                 </div>
-                <div class="suggestion-actions">
-                    <button class="suggestion-btn accept" onclick="acceptSuggestion()">✅ Accept Suggestion</button>
-                    <button class="suggestion-btn decline" onclick="declineSuggestion()">❌ Manual Selection</button>
+                <div class="non-adjacent-actions">
+                    <button class="non-adjacent-btn confirm" onclick="confirmNonAdjacentSelection()">Yes, Continue</button>
+                    <button class="non-adjacent-btn cancel" onclick="cancelNonAdjacentSelection()">No, Choose Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gap Warning Modal -->
+    <div id="gapWarningModal" class="gap-warning-modal">
+        <div class="gap-warning-content">
+            <div class="gap-warning-header">
+                <h3>⚠️ Gap Warning</h3>
+            </div>
+            <div class="gap-warning-body">
+                <p id="gapWarningMessage">This selection may leave a single-seat gap between reservations. Are you sure you want to continue?</p>
+                <div class="gap-warning-actions">
+                    <button class="gap-warning-btn confirm" onclick="confirmGapSelection()">Yes, Continue</button>
+                    <button class="gap-warning-btn cancel" onclick="cancelGapSelection()">Cancel</button>
                 </div>
             </div>
         </div>
@@ -548,65 +662,30 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         let currentHallId = null;
         let currentShiftId = null;
         let allSeats = [];
-        let lastScrollY = 0;
-        let currentSuggestion = null;
+        let seatMap = {};
+        let pendingGapSeat = null;
+        let pendingNonAdjacentSelection = false;
 
         // DOM Elements
         const form = document.getElementById('registrationForm');
         const shiftSelect = document.getElementById('shift_id');
         const attendeeCountSelect = document.getElementById('attendee_count');
         const seatSelectionGroup = document.querySelector('.seat-selection-group');
-        const seatMap = document.getElementById('seatMap');
+        const seatMapElement = document.getElementById('seatMap');
         const selectedSeatsDisplay = document.getElementById('selectedSeats');
         const submitButton = document.querySelector('.submit-button');
         const termsCheckbox = document.getElementById('terms');
         const hallDisplay = document.getElementById('hall_display');
         const assignedHall = document.getElementById('assigned_hall');
         const hiddenHallId = document.getElementById('hidden_hall_id');
-        const header = document.getElementById('mainHeader');
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             if (registrationEnabled) {
                 initializeForm();
                 setupEventListeners();
-                initializeStickyHeader();
             }
         });
-
-        // Feature 1: Sticky Header with Hide-on-Scroll
-        function initializeStickyHeader() {
-            let ticking = false;
-
-            function updateHeader() {
-                const currentScrollY = window.pageYOffset;
-                
-                if (currentScrollY > 100) { // Only hide after scrolling past hero
-                    if (currentScrollY > lastScrollY && currentScrollY > 200) {
-                        // Scrolling down - hide header
-                        header.classList.add('hidden');
-                    } else {
-                        // Scrolling up - show header
-                        header.classList.remove('hidden');
-                    }
-                } else {
-                    // At top - always show header
-                    header.classList.remove('hidden');
-                }
-                
-                lastScrollY = currentScrollY;
-                ticking = false;
-            }
-
-            function requestTick() {
-                if (!ticking) {
-                    requestAnimationFrame(updateHeader);
-                    ticking = true;
-                }
-            }
-
-            window.addEventListener('scroll', requestTick, { passive: true });
-        }
 
         function initializeForm() {
             // Smooth scrolling
@@ -638,18 +717,14 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     currentShiftId = shiftId;
                     hiddenHallId.value = hallId;
                     
-                    // Update attendee count options based on hall
-                    updateAttendeeCountOptions(hallId);
-                    
                     // Show assigned hall
                     const hallName = hallId === 1 ? 'Cinema Hall 1' : 'Cinema Hall 2';
-                    const maxAttendees = hallId === 2 ? 4 : 3;
                     assignedHall.innerHTML = `
                         <div class="hall-info">
                             <span class="hall-icon">${hallId === 1 ? '🎬' : '🎭'}</span>
                             <div class="hall-details">
                                 <strong>${hallName}</strong>
-                                <p>Automatically assigned for ${shiftName} (Max ${maxAttendees} attendees)</p>
+                                <p>Automatically assigned for ${shiftName} (Max 3 attendees)</p>
                             </div>
                         </div>
                     `;
@@ -662,7 +737,6 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     currentHallId = null;
                     currentShiftId = null;
                     hiddenHallId.value = '';
-                    updateAttendeeCountOptions(1); // Reset to default
                 }
                 updateSubmitButtonState();
             });
@@ -670,11 +744,18 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             // Attendee count change
             attendeeCountSelect.addEventListener('change', function() {
                 const count = parseInt(this.value) || 0;
-                if (count > 0 && selectedSeats.length > count) {
-                    selectedSeats = selectedSeats.slice(0, count);
-                    updateSeatMap();
-                    updateSelectedSeatsDisplay();
+                
+                // Clear selected seats but keep the map visible
+                selectedSeats = [];
+                clearSeatSelections();
+                
+                // Re-render the seat map if we have seats loaded
+                if (allSeats.length > 0) {
+                    renderSeatMap(allSeats);
+                    // Ensure seat selection group stays visible
+                    seatSelectionGroup.style.display = 'block';
                 }
+                
                 updateSubmitButtonState();
             });
 
@@ -705,26 +786,6 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             return 1;
         }
 
-        function updateAttendeeCountOptions(hallId) {
-            const option4 = document.getElementById('option_4');
-            const attendeeHelp = document.getElementById('attendee_help');
-            
-            if (hallId === 2) {
-                // Cinema Hall 2 allows up to 4 attendees
-                option4.style.display = 'block';
-                attendeeHelp.textContent = 'Maximum 4 attendees per registration';
-            } else {
-                // Cinema Hall 1 allows up to 3 attendees
-                option4.style.display = 'none';
-                attendeeHelp.textContent = 'Maximum 3 attendees per registration';
-                
-                // If 4 is currently selected, reset to empty
-                if (attendeeCountSelect.value === '4') {
-                    attendeeCountSelect.value = '';
-                }
-            }
-        }
-
         function loadSeatsForHallAndShift(hallId, shiftId) {
             showLoading(true);
             
@@ -737,6 +798,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             .then(data => {
                 if (data.success) {
                     allSeats = data.seats;
+                    buildSeatMap(data.seats);
                     renderSeatMap(data.seats);
                     seatSelectionGroup.style.display = 'block';
                 } else {
@@ -752,8 +814,18 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             });
         }
 
+        function buildSeatMap(seats) {
+            seatMap = {};
+            seats.forEach(seat => {
+                if (!seatMap[seat.row_letter]) {
+                    seatMap[seat.row_letter] = {};
+                }
+                seatMap[seat.row_letter][seat.seat_position] = seat;
+            });
+        }
+
         function renderSeatMap(seats) {
-            seatMap.innerHTML = '';
+            seatMapElement.innerHTML = '';
             selectedSeats = [];
             
             // Group seats by row
@@ -791,20 +863,19 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     seatElement.dataset.seatPosition = seat.seat_position;
                     
                     if (seat.status === 'available') {
-                        seatElement.addEventListener('click', () => handleSeatClick(seat, rowLetter));
+                        seatElement.addEventListener('click', () => handleSeatClick(seat));
                     }
                     
                     rowDiv.appendChild(seatElement);
                 });
                 
-                seatMap.appendChild(rowDiv);
+                seatMapElement.appendChild(rowDiv);
             });
             
             updateSelectedSeatsDisplay();
         }
 
-        // Feature 2: Smart Seat Row Auto-Suggestion
-        function handleSeatClick(seat, rowLetter) {
+        function handleSeatClick(clickedSeat) {
             const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
             
             if (attendeeCount === 0) {
@@ -812,260 +883,274 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                 return;
             }
 
-            // Check if this row has enough consecutive seats
-            if (!hasEnoughConsecutiveSeats(rowLetter, attendeeCount)) {
-                // Find alternative rows
-                const suggestion = findAlternativeRow(rowLetter, attendeeCount);
-                if (suggestion) {
-                    showSmartSuggestion(rowLetter, suggestion);
-                    return;
-                } else {
-                    showError(`No rows found with ${attendeeCount} consecutive seats. Please select seats manually.`);
-                    return;
-                }
-            }
-
-            // Proceed with normal seat selection
-            toggleSeat(seat);
-        }
-
-        function hasEnoughConsecutiveSeats(rowLetter, requiredCount) {
-            const rowSeats = allSeats
-                .filter(seat => seat.row_letter === rowLetter && seat.status === 'available')
-                .sort((a, b) => a.seat_position - b.seat_position);
-
-            if (rowSeats.length < requiredCount) return false;
-
-            // Check for consecutive seats
-            let consecutiveCount = 1;
-            for (let i = 1; i < rowSeats.length; i++) {
-                if (rowSeats[i].seat_position === rowSeats[i-1].seat_position + 1) {
-                    consecutiveCount++;
-                    if (consecutiveCount >= requiredCount) return true;
-                } else {
-                    consecutiveCount = 1;
-                }
-            }
-
-            return consecutiveCount >= requiredCount;
-        }
-
-        function findAlternativeRow(originalRow, requiredCount) {
-            const allRows = [...new Set(allSeats.map(seat => seat.row_letter))].sort();
-            const originalIndex = allRows.indexOf(originalRow);
-            
-            // Search nearby rows (one above, one below, expanding outward)
-            for (let distance = 1; distance < allRows.length; distance++) {
-                // Check row above
-                const upperIndex = originalIndex - distance;
-                if (upperIndex >= 0) {
-                    const upperRow = allRows[upperIndex];
-                    if (hasEnoughConsecutiveSeats(upperRow, requiredCount)) {
-                        return {
-                            row: upperRow,
-                            seats: getConsecutiveSeats(upperRow, requiredCount)
-                        };
-                    }
-                }
-                
-                // Check row below
-                const lowerIndex = originalIndex + distance;
-                if (lowerIndex < allRows.length) {
-                    const lowerRow = allRows[lowerIndex];
-                    if (hasEnoughConsecutiveSeats(lowerRow, requiredCount)) {
-                        return {
-                            row: lowerRow,
-                            seats: getConsecutiveSeats(lowerRow, requiredCount)
-                        };
-                    }
-                }
-            }
-            
-            return null;
-        }
-
-        function getConsecutiveSeats(rowLetter, count) {
-            const rowSeats = allSeats
-                .filter(seat => seat.row_letter === rowLetter && seat.status === 'available')
-                .sort((a, b) => a.seat_position - b.seat_position);
-
-            // Find the first set of consecutive seats
-            for (let i = 0; i <= rowSeats.length - count; i++) {
-                let isConsecutive = true;
-                for (let j = 1; j < count; j++) {
-                    if (rowSeats[i + j].seat_position !== rowSeats[i + j - 1].seat_position + 1) {
-                        isConsecutive = false;
-                        break;
-                    }
-                }
-                if (isConsecutive) {
-                    return rowSeats.slice(i, i + count);
-                }
-            }
-            
-            return [];
-        }
-
-        function showSmartSuggestion(originalRow, suggestion) {
-            currentSuggestion = suggestion;
-            
-            document.getElementById('suggestionMessage').textContent = 
-                `Row ${originalRow} doesn't have enough consecutive seats. Would you like to book Row ${suggestion.row} instead?`;
-            
-            document.getElementById('suggestedSeatsList').textContent = 
-                suggestion.seats.map(seat => seat.seat_number).join(', ');
-            
-            // Highlight suggested row
-            highlightSuggestedRow(suggestion.row, suggestion.seats);
-            
-            document.getElementById('suggestionModal').style.display = 'flex';
-        }
-
-        function highlightSuggestedRow(rowLetter, seats) {
-            // Remove previous highlights
-            document.querySelectorAll('.seat-row.suggested').forEach(row => {
-                row.classList.remove('suggested');
-            });
-            document.querySelectorAll('.seat.suggested-seat').forEach(seat => {
-                seat.classList.remove('suggested-seat');
-            });
-
-            // Highlight suggested row
-            const rowElement = document.querySelector(`[data-row-letter="${rowLetter}"]`);
-            if (rowElement) {
-                rowElement.classList.add('suggested');
-                
-                // Highlight suggested seats
-                seats.forEach(seat => {
-                    const seatElement = document.querySelector(`[data-seat-number="${seat.seat_number}"]`);
-                    if (seatElement) {
-                        seatElement.classList.add('suggested-seat');
-                    }
-                });
-            }
-        }
-
-        function acceptSuggestion() {
-            if (currentSuggestion) {
-                // Clear current selection
-                selectedSeats = [];
-                
-                // Select suggested seats
-                currentSuggestion.seats.forEach(seat => {
-                    selectedSeats.push(seat);
-                });
-                
-                updateSeatMap();
+            // Check if seat is already selected
+            const seatIndex = selectedSeats.findIndex(s => s.id === clickedSeat.id);
+            if (seatIndex > -1) {
+                // Deselect seat
+                selectedSeats.splice(seatIndex, 1);
+                updateSeatDisplay();
                 updateSelectedSeatsDisplay();
                 updateSubmitButtonState();
-            }
-            
-            closeSuggestionModal();
-        }
-
-        function declineSuggestion() {
-            closeSuggestionModal();
-        }
-
-        function closeSuggestionModal() {
-            document.getElementById('suggestionModal').style.display = 'none';
-            currentSuggestion = null;
-            
-            // Remove highlights
-            document.querySelectorAll('.seat-row.suggested').forEach(row => {
-                row.classList.remove('suggested');
-            });
-            document.querySelectorAll('.seat.suggested-seat').forEach(seat => {
-                seat.classList.remove('suggested-seat');
-            });
-        }
-
-        function toggleSeat(seat) {
-            const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
-            
-            if (attendeeCount === 0) {
-                showError('Please select the number of attendees first');
                 return;
             }
+
+            // Check if we can add more seats
+            if (selectedSeats.length >= attendeeCount) {
+                showError(`You can only select ${attendeeCount} seat(s).`);
+                return;
+            }
+
+            // Add seat to selection
+            selectedSeats.push(clickedSeat);
             
-            const seatIndex = selectedSeats.findIndex(s => s.id === seat.id);
-            
-            if (seatIndex > -1) {
-                // Remove seat
-                selectedSeats.splice(seatIndex, 1);
-            } else {
-                // Add seat
-                if (selectedSeats.length >= attendeeCount) {
-                    showError(`You can only select ${attendeeCount} seat(s)`);
+            // Check if selection is complete
+            if (selectedSeats.length === attendeeCount) {
+                // Check for gaps first
+                const gapCheck = checkSingleGap(selectedSeats);
+                if (gapCheck.hasGap) {
+                    // Remove the last seat temporarily
+                    pendingGapSeat = selectedSeats.pop();
+                    showGapWarning(gapCheck.message);
                     return;
                 }
                 
-                // Check if this seat can be added without creating gaps
-                if (!canAddSeat(seat)) {
+                // Check if seats are adjacent (side-by-side or nearby)
+                if (!areSeatsAdjacent(selectedSeats)) {
+                    // Show non-adjacent confirmation
+                    showNonAdjacentModal();
                     return;
                 }
-                
-                selectedSeats.push(seat);
             }
             
-            updateSeatMap();
+            updateSeatDisplay();
             updateSelectedSeatsDisplay();
             updateSubmitButtonState();
         }
 
-        function canAddSeat(newSeat) {
-            // If this is the first seat, allow it
-            if (selectedSeats.length === 0) {
+        // Enhanced adjacency check - more flexible
+        function areSeatsAdjacent(seats) {
+            if (seats.length <= 1) return true;
+            
+            // Check if all seats are side-by-side in the same row
+            const sameRowSeats = seats.filter(seat => seat.row_letter === seats[0].row_letter);
+            if (sameRowSeats.length === seats.length) {
+                // All in same row - check if they're consecutive
+                const positions = sameRowSeats.map(s => parseInt(s.seat_position)).sort((a, b) => a - b);
+                for (let i = 1; i < positions.length; i++) {
+                    if (positions[i] - positions[i-1] > 2) { // Allow 1 seat gap
+                        return false;
+                    }
+                }
                 return true;
             }
             
-            // Check if the new seat is adjacent to any existing selected seat
-            const isAdjacent = selectedSeats.some(selectedSeat => {
-                // Same row and adjacent position
-                if (selectedSeat.row_letter === newSeat.row_letter) {
-                    const posDiff = Math.abs(parseInt(selectedSeat.seat_position) - parseInt(newSeat.seat_position));
-                    return posDiff === 1;
+            // Check if seats are in adjacent rows and nearby positions
+            const rowLetters = [...new Set(seats.map(s => s.row_letter))].sort();
+            if (rowLetters.length <= 2) {
+                // Check if rows are adjacent
+                if (rowLetters.length === 2) {
+                    const rowDiff = Math.abs(rowLetters[1].charCodeAt(0) - rowLetters[0].charCodeAt(0));
+                    if (rowDiff <= 1) {
+                        // Rows are adjacent, check if positions are nearby
+                        const positions = seats.map(s => parseInt(s.seat_position));
+                        const minPos = Math.min(...positions);
+                        const maxPos = Math.max(...positions);
+                        return (maxPos - minPos) <= 3; // Allow some spread
+                    }
                 }
-                return false;
-            });
-            
-            if (!isAdjacent) {
-                showError('Please select seats next to each other. No gaps allowed between selected seats.');
-                return false;
+                return true; // Single row or close rows
             }
             
-            // Additional check: ensure all selected seats (including new one) form a continuous block
-            const allSelectedSeats = [...selectedSeats, newSeat];
-            
-            // Group by row
+            return false; // Too spread out
+        }
+
+        // Check for single-seat gaps (more flexible)
+        function checkSingleGap(seats) {
+            // Group seats by row
             const seatsByRow = {};
-            allSelectedSeats.forEach(seat =>  {
+            seats.forEach(seat => {
                 if (!seatsByRow[seat.row_letter]) {
                     seatsByRow[seat.row_letter] = [];
                 }
                 seatsByRow[seat.row_letter].push(parseInt(seat.seat_position));
             });
             
-            // Check each row has continuous seats
-            for (const row in seatsByRow) {
-                const positions = seatsByRow[row].sort((a, b) => a - b);
-                for (let i = 1; i < positions.length; i++) {
-                    if (positions[i] - positions[i-1] !== 1) {
-                        showError('Selected seats must be next to each other with no gaps');
-                        return false;
+            // Check each row for gaps
+            for (const [row, positions] of Object.entries(seatsByRow)) {
+                if (positions.length < 2) continue;
+                
+                positions.sort((a, b) => a - b);
+                
+                // Check for single-seat gaps between selected seats
+                for (let i = 0; i < positions.length - 1; i++) {
+                    const gap = positions[i + 1] - positions[i];
+                    if (gap === 2) {
+                        // There's a single seat gap
+                        const gapPosition = positions[i] + 1;
+                        const gapSeat = allSeats.find(s => 
+                            s.row_letter === row && 
+                            parseInt(s.seat_position) === gapPosition && 
+                            s.status === 'available'
+                        );
+                        
+                        if (gapSeat) {
+                            return {
+                                hasGap: true,
+                                message: `This selection would leave seat ${row}${gapPosition} isolated between your selected seats. This may make it difficult for other guests to book. Are you sure you want to continue?`
+                            };
+                        }
                     }
                 }
             }
             
-            return true;
+            return { hasGap: false };
         }
 
-        function updateSeatMap() {
-            document.querySelectorAll('.seat').forEach(seatElement => {
-                const seatId = parseInt(seatElement.dataset.seatId);
-                const isSelected = selectedSeats.some(seat => seat.id === seatId);
+        // Show non-adjacent selection modal
+        function showNonAdjacentModal() {
+            const modal = document.getElementById('nonAdjacentModal');
+            const previewContainer = document.getElementById('nonAdjacentSeatsPreview');
+            
+            // Show selected seats
+            const seatNumbers = selectedSeats
+                .sort((a, b) => {
+                    if (a.row_letter !== b.row_letter) {
+                        return a.row_letter.localeCompare(b.row_letter);
+                    }
+                    return parseInt(a.seat_position) - parseInt(b.seat_position);
+                })
+                .map(seat => seat.seat_number);
+            
+            previewContainer.innerHTML = seatNumbers
+                .map(seat => `<div class="preview-seat">${seat}</div>`)
+                .join('');
+            
+            modal.style.display = 'flex';
+            pendingNonAdjacentSelection = true;
+        }
+
+        // Confirm non-adjacent selection
+        function confirmNonAdjacentSelection() {
+            pendingNonAdjacentSelection = false;
+            closeNonAdjacentModal();
+            updateSeatDisplay();
+            updateSelectedSeatsDisplay();
+            updateSubmitButtonState();
+        }
+
+        // Cancel non-adjacent selection
+        function cancelNonAdjacentSelection() {
+            // Remove the last selected seat(s) to allow re-selection
+            selectedSeats = [];
+            pendingNonAdjacentSelection = false;
+            closeNonAdjacentModal();
+            updateSeatDisplay();
+            updateSelectedSeatsDisplay();
+            updateSubmitButtonState();
+        }
+
+        // Close non-adjacent modal
+        function closeNonAdjacentModal() {
+            document.getElementById('nonAdjacentModal').style.display = 'none';
+        }
+
+        // Show gap warning modal
+        function showGapWarning(message) {
+            const modal = document.getElementById('gapWarningModal');
+            const messageEl = document.getElementById('gapWarningMessage');
+            messageEl.textContent = message;
+            modal.style.display = 'flex';
+        }
+
+        // Confirm gap selection
+        function confirmGapSelection() {
+            if (pendingGapSeat) {
+                selectedSeats.push(pendingGapSeat);
                 
-                seatElement.classList.toggle('selected', isSelected);
+                // Check if this completes the selection and if it's non-adjacent
+                const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
+                if (selectedSeats.length === attendeeCount && !areSeatsAdjacent(selectedSeats)) {
+                    showNonAdjacentModal();
+                    closeGapWarning();
+                    return;
+                }
+                
+                updateSeatDisplay();
+                updateSelectedSeatsDisplay();
+                updateSubmitButtonState();
+                pendingGapSeat = null;
+            }
+            closeGapWarning();
+        }
+
+        // Cancel gap selection
+        function cancelGapSelection() {
+            pendingGapSeat = null;
+            closeGapWarning();
+        }
+
+        // Close gap warning modal
+        function closeGapWarning() {
+            document.getElementById('gapWarningModal').style.display = 'none';
+        }
+
+        function clearSeatSelections() {
+            selectedSeats = [];
+            
+            // Remove all selection classes
+            document.querySelectorAll('.seat').forEach(seatElement => {
+                seatElement.classList.remove('selected', 'suggested');
+            });
+        }
+
+        function updateSeatDisplay() {
+            // Clear all special classes first
+            document.querySelectorAll('.seat').forEach(seatElement => {
+                seatElement.classList.remove('selected', 'suggested');
+            });
+            
+            // Mark selected seats
+            selectedSeats.forEach(seat => {
+                const seatElement = document.querySelector(`[data-seat-id="${seat.id}"]`);
+                if (seatElement) {
+                    seatElement.classList.add('selected');
+                }
+            });
+            
+            // Suggest adjacent seats if we have partial selection
+            const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
+            if (selectedSeats.length > 0 && selectedSeats.length < attendeeCount) {
+                suggestAdjacentSeats();
+            }
+        }
+
+        function suggestAdjacentSeats() {
+            const lastSeat = selectedSeats[selectedSeats.length - 1];
+            const row = lastSeat.row_letter;
+            const position = parseInt(lastSeat.seat_position);
+            
+            // Suggest seats adjacent to the last selected seat
+            const adjacentPositions = [
+                { row: row, position: position - 1 },
+                { row: row, position: position + 1 },
+                { row: String.fromCharCode(row.charCodeAt(0) - 1), position: position },
+                { row: String.fromCharCode(row.charCodeAt(0) + 1), position: position }
+            ];
+            
+            adjacentPositions.forEach(pos => {
+                const seat = allSeats.find(s => 
+                    s.row_letter === pos.row && 
+                    parseInt(s.seat_position) === pos.position && 
+                    s.status === 'available' &&
+                    !selectedSeats.some(selected => selected.id === s.id)
+                );
+                
+                if (seat) {
+                    const seatElement = document.querySelector(`[data-seat-id="${seat.id}"]`);
+                    if (seatElement) {
+                        seatElement.classList.add('suggested');
+                    }
+                }
             });
         }
 
@@ -1094,7 +1179,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         function resetSeatSelection() {
             selectedSeats = [];
             seatSelectionGroup.style.display = 'none';
-            seatMap.innerHTML = '';
+            seatMapElement.innerHTML = '';
             updateSelectedSeatsDisplay();
         }
 
@@ -1105,12 +1190,13 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
             const termsAccepted = termsCheckbox.checked;
             
-            const isValid = empNumber.length >= 3 && 
+            const isValid = empNumber.length >= 2 && 
                            staffName.length >= 2 && 
                            shiftId && 
                            attendeeCount > 0 && 
                            selectedSeats.length === attendeeCount && 
-                           termsAccepted;
+                           termsAccepted &&
+                           !pendingNonAdjacentSelection;
             
             submitButton.disabled = !isValid;
         }
@@ -1137,10 +1223,11 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showSuccessModal(data.registration);
-                    form.reset();
-                    resetSeatSelection();
-                    updateSubmitButtonState();
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        showSuccessModal();
+                    }
                 } else {
                     showError(data.message || 'Registration failed');
                 }
@@ -1159,8 +1246,8 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             const staffName = document.getElementById('staff_name').value.trim();
             const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
             
-            if (!empNumber.match(/^[A-Z0-9]{3,20}$/)) {
-                showError('Invalid employee number format');
+            if (empNumber.length < 2) {
+                showError('Employee number must be at least 2 characters');
                 return false;
             }
             
@@ -1177,30 +1264,8 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             return true;
         }
 
-        function showSuccessModal(registration) {
+        function showSuccessModal() {
             const modal = document.getElementById('successModal');
-            const detailsDiv = document.getElementById('registrationDetails');
-            
-            detailsDiv.innerHTML = `
-                <div class="registration-summary">
-                    <div class="summary-item">
-                        <strong>Employee:</strong> ${registration.emp_number} - ${registration.staff_name}
-                    </div>
-                    <div class="summary-item">
-                        <strong>Hall:</strong> ${registration.hall_name}
-                    </div>
-                    <div class="summary-item">
-                        <strong>Shift:</strong> ${registration.shift_name}
-                    </div>
-                    <div class="summary-item">
-                        <strong>Attendees:</strong> ${registration.attendee_count}
-                    </div>
-                    <div class="summary-item">
-                        <strong>Seats:</strong> ${registration.selected_seats.join(', ')}
-                    </div>
-                </div>
-            `;
-            
             modal.style.display = 'flex';
         }
 
@@ -1222,11 +1287,10 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
 
         // Close modals when clicking outside
         window.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal') || e.target.classList.contains('suggestion-modal')) {
+            if (e.target.classList.contains('modal') || 
+                e.target.classList.contains('non-adjacent-modal') ||
+                e.target.classList.contains('gap-warning-modal')) {
                 e.target.style.display = 'none';
-                if (e.target.id === 'suggestionModal') {
-                    closeSuggestionModal();
-                }
             }
         });
     </script>

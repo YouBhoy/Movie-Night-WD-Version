@@ -28,10 +28,14 @@ $attemptStmt->execute([$ip]);
 $loginAttempts = $attemptStmt->fetchColumn();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Rate limiting check
-    if ($loginAttempts >= 5) {
+    // Rate limiting check with delay for failed attempts
+    if ($loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        sleep(3); // Add delay for repeated failed attempts
         $error = 'Too many failed login attempts. Please try again in 15 minutes.';
     } else {
+        // Add small delay for any login attempt to prevent timing attacks
+        usleep(500000); // 0.5 second delay
+        
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
         
@@ -41,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Check credentials
             if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
-                // Successful login
+                // Successful login - regenerate session ID for security
+                session_regenerate_id(true);
+                
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_username'] = $username;
                 $_SESSION['admin_login_time'] = time();
@@ -54,17 +60,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logStmt->execute([$ip, $username]);
                 
                 // Log admin activity
-                $activityStmt = $pdo->prepare("
-                    INSERT INTO admin_activity_log (admin_user, action, details, ip_address, user_agent, created_at) 
-                    VALUES (?, 'login', 'Admin logged in successfully', ?, ?, NOW())
-                ");
-                $activityStmt->execute([$username, $ip, $_SERVER['HTTP_USER_AGENT'] ?? '']);
+                logAdminActivity('login', null, null, ['login_time' => date('Y-m-d H:i:s')]);
                 
                 header('Location: admin-dashboard.php');
                 exit;
             } else {
-                // Failed login
-                $error = 'Invalid username or password.';
+                // Failed login with rate limiting
+                if (!checkRateLimit($ip . '_login', MAX_LOGIN_ATTEMPTS, LOGIN_LOCKOUT_TIME, true)) {
+                    $error = 'Too many failed attempts. Please try again later.';
+                } else {
+                    $error = 'Invalid username or password.';
+                }
                 
                 // Log failed attempt
                 $logStmt = $pdo->prepare("

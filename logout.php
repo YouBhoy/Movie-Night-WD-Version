@@ -4,18 +4,7 @@ require_once 'config.php';
 // Log admin activity if logged in
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     try {
-        $pdo = getDBConnection();
-        $adminUser = $_SESSION['admin_username'] ?? 'admin';
-        
-        $logStmt = $pdo->prepare("
-            INSERT INTO admin_activity_log (admin_user, action, details, ip_address, user_agent, created_at) 
-            VALUES (?, 'logout', 'Admin logged out', ?, ?, NOW())
-        ");
-        $logStmt->execute([
-            $adminUser,
-            $_SERVER['REMOTE_ADDR'] ?? '',
-            $_SERVER['HTTP_USER_AGENT'] ?? ''
-        ]);
+        logAdminActivity('logout', null, null, ['logout_time' => date('Y-m-d H:i:s')]);
     } catch (Exception $e) {
         error_log("Logout logging error: " . $e->getMessage());
     }

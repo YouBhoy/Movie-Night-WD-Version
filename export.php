@@ -83,16 +83,9 @@ try {
         fclose($output);
         
         // Log admin activity
-        $adminUser = $_SESSION['admin_username'] ?? 'admin';
-        $logStmt = $pdo->prepare("
-            INSERT INTO admin_activity_log (admin_user, action, target_type, details, ip_address, user_agent, created_at) 
-            VALUES (?, 'export_registrations', 'registrations', ?, ?, ?, NOW())
-        ");
-        $logStmt->execute([
-            $adminUser,
-            json_encode(['export_type' => 'csv', 'record_count' => count($registrations)]),
-            $_SERVER['REMOTE_ADDR'] ?? '',
-            $_SERVER['HTTP_USER_AGENT'] ?? ''
+        logAdminActivity('export_registrations', 'registrations', null, [
+            'export_type' => 'csv', 
+            'record_count' => count($registrations)
         ]);
         
     } else {
