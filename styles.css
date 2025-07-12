@@ -226,6 +226,18 @@ body {
   backdrop-filter: blur(10px);
 }
 
+.employee-notice {
+  background: linear-gradient(135deg, #2e8bff, #1e40af);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  text-align: center;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(46, 139, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .registration-form {
   display: flex;
   flex-direction: column;

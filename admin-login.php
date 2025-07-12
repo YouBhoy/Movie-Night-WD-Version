@@ -43,14 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
             $error = 'Invalid security token. Please refresh the page.';
         } else {
-            // Check credentials
-            if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
+            // Check credentials using the adminLogin function
+            if (adminLogin($username, $password)) {
                 // Successful login - regenerate session ID for security
                 session_regenerate_id(true);
-                
-                $_SESSION['admin_logged_in'] = true;
-                $_SESSION['admin_username'] = $username;
-                $_SESSION['admin_login_time'] = time();
                 
                 // Log successful login
                 $logStmt = $pdo->prepare("
@@ -60,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logStmt->execute([$ip, $username]);
                 
                 // Log admin activity
-                logAdminActivity('login', null, null, ['login_time' => date('Y-m-d H:i:s')]);
+                logActivity('admin_login', 'Admin login successful', $username);
                 
                 header('Location: admin-dashboard.php');
                 exit;

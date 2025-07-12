@@ -30,6 +30,7 @@ define('RATE_LIMIT_WINDOW', 60); // seconds
 define('APP_NAME', 'WD Movie Night');
 define('APP_VERSION', '2.0.0');
 define('ADMIN_EMAIL', 'admin@company.com');
+define('ADMIN_KEY', 'wd_movie_night_admin_2025');
 
 // Error Reporting (disable in production)
 error_reporting(E_ALL);
@@ -151,20 +152,62 @@ function requireAdminLogin() {
 }
 
 function adminLogin($username, $password) {
-    // Simple admin authentication (enhance with database in production)
-    $validCredentials = [
-        'admin' => password_hash('admin123', PASSWORD_DEFAULT),
-        'manager' => password_hash('manager456', PASSWORD_DEFAULT)
-    ];
-    
-    if (isset($validCredentials[$username]) && password_verify($password, $validCredentials[$username])) {
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_username'] = $username;
-        $_SESSION['admin_login_time'] = time();
-        return true;
+    try {
+        $pdo = getDBConnection();
+        
+        // Check if admin_users table exists, fallback to hardcoded if not
+        $stmt = $pdo->prepare("SHOW TABLES LIKE 'admin_users'");
+        $stmt->execute();
+        
+        if ($stmt->rowCount() > 0) {
+            // Use database-based authentication
+            $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active FROM admin_users WHERE username = ? AND is_active = 1");
+            $stmt->execute([$username]);
+            $admin = $stmt->fetch();
+            
+            if ($admin && password_verify($password, $admin['password_hash'])) {
+                // Update last login
+                $updateStmt = $pdo->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
+                $updateStmt->execute([$admin['id']]);
+                
+                $_SESSION['admin_logged_in'] = true;
+                $_SESSION['admin_username'] = $admin['username'];
+                $_SESSION['admin_role'] = $admin['role'];
+                $_SESSION['admin_login_time'] = time();
+                
+                // Log successful login
+                logSecurityEvent('admin_login_success', $username, 'low');
+                
+                return true;
+            }
+        } else {
+            // Fallback to hardcoded credentials (for development)
+            // These are pre-hashed passwords - DO NOT change these hashes
+            $validCredentials = [
+                'admin' => '$2y$10$g.EDUbvBbQk424b8eulqaOs3lEOpjIYHG4gPlOW1Q8GfuRGjuakWm', // admin123
+                'manager' => '$2y$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B77UdFm' // manager456
+            ];
+            
+            if (isset($validCredentials[$username]) && password_verify($password, $validCredentials[$username])) {
+                $_SESSION['admin_logged_in'] = true;
+                $_SESSION['admin_username'] = $username;
+                $_SESSION['admin_role'] = 'admin';
+                $_SESSION['admin_login_time'] = time();
+                
+                logSecurityEvent('admin_login_success', $username, 'low');
+                return true;
+            }
+        }
+        
+        // Log failed login attempt
+        logSecurityEvent('admin_login_failed', $username, 'medium');
+        return false;
+        
+    } catch (Exception $e) {
+        error_log("Admin login error: " . $e->getMessage());
+        logSecurityEvent('admin_login_error', $username, 'high');
+        return false;
     }
-    
-    return false;
 }
 
 function adminLogout() {
@@ -219,19 +262,86 @@ function getEventSetting($key, $default = null) {
 function logActivity($action, $details = '', $userId = null) {
     try {
         $pdo = getDBConnection();
+        // Check if activity_logs table exists, if not, just log to error log
+        $stmt = $pdo->prepare("SHOW TABLES LIKE 'activity_logs'");
+        $stmt->execute();
+        if ($stmt->rowCount() > 0) {
+            $stmt = $pdo->prepare("
+                INSERT INTO activity_logs (user_id, action, details, ip_address, user_agent, created_at) 
+                VALUES (?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $userId,
+                $action,
+                $details,
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                $_SERVER['HTTP_USER_AGENT'] ?? ''
+            ]);
+        } else {
+            // Fallback to error log if table doesn't exist
+            error_log("Activity Log: $action - $details - User: $userId");
+        }
+    } catch (Exception $e) {
+        error_log("Error logging activity: " . $e->getMessage());
+    }
+}
+
+/**
+ * Security Event Logging Function
+ */
+function logSecurityEvent($eventType, $userId = null, $riskLevel = 'low', $details = []) {
+    try {
+        $pdo = getDBConnection();
+        
+        // Check if security_audit_log table exists
+        $stmt = $pdo->prepare("SHOW TABLES LIKE 'security_audit_log'");
+        $stmt->execute();
+        
+        if ($stmt->rowCount() > 0) {
+            $stmt = $pdo->prepare("
+                INSERT INTO security_audit_log (event_type, user_id, ip_address, user_agent, details, risk_level, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ");
+            $stmt->execute([
+                $eventType,
+                $userId,
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                $_SERVER['HTTP_USER_AGENT'] ?? '',
+                json_encode($details),
+                $riskLevel
+            ]);
+        } else {
+            // Fallback to error log
+            error_log("Security Event: $eventType - User: $userId - Risk: $riskLevel - IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+        }
+    } catch (Exception $e) {
+        error_log("Error logging security event: " . $e->getMessage());
+    }
+}
+
+/**
+ * Admin Activity Logging Function
+ */
+function logAdminActivity($action, $targetType = null, $targetId = null, $details = []) {
+    try {
+        $pdo = getDBConnection();
+        $adminUser = $_SESSION['admin_username'] ?? 'unknown';
+        
         $stmt = $pdo->prepare("
-            INSERT INTO activity_logs (user_id, action, details, ip_address, user_agent, created_at) 
-            VALUES (?, ?, ?, ?, ?, NOW())
+            INSERT INTO admin_activity_log (admin_user, action, target_type, target_id, details, ip_address, user_agent, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->execute([
-            $userId,
+            $adminUser,
             $action,
-            $details,
+            $targetType,
+            $targetId,
+            json_encode($details),
             $_SERVER['REMOTE_ADDR'] ?? '',
             $_SERVER['HTTP_USER_AGENT'] ?? ''
         ]);
     } catch (Exception $e) {
-        error_log("Error logging activity: " . $e->getMessage());
+        error_log("Error logging admin activity: " . $e->getMessage());
     }
 }
 
@@ -255,6 +365,37 @@ function generateRandomString($length = 10) {
 
 function isValidPhoneNumber($phone) {
     return preg_match('/^[\+]?[0-9\s\-$$$$]{8,15}$/', $phone);
+}
+
+/**
+ * Map department to shift for hall assignment
+ */
+function mapDepartmentToShift($department) {
+    // Default mapping - you can customize this based on your organization's structure
+    $department = strtolower(trim($department));
+    
+    // Map departments to shifts based on your business logic
+    switch ($department) {
+        case 'engineering':
+        case 'it':
+        case 'operations':
+            return 'Normal Shift';
+        case 'marketing':
+        case 'sales':
+        case 'hr':
+            return 'Crew A (Off/Rest Day)';
+        case 'finance':
+        case 'accounting':
+        case 'legal':
+            return 'Crew B (Off/Rest Day)';
+        case 'testing':
+        case 'quality':
+        case 'support':
+            return 'Crew C (Day Shift)';
+        default:
+            // Default to Normal Shift for unknown departments
+            return 'Normal Shift';
+    }
 }
 
 /**
@@ -315,14 +456,24 @@ function sendEmail($to, $subject, $message, $headers = '') {
  * Security Headers
  */
 function setSecurityHeaders() {
+    // Content Security Policy
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'");
+    
+    // Security headers
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('X-XSS-Protection: 1; mode=block');
     header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
     
+    // HTTPS enforcement
     if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
-        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains; preload');
     }
+    
+    // Remove server information
+    header_remove('X-Powered-By');
+    header_remove('Server');
 }
 
 // Set security headers for all requests

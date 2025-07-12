@@ -177,6 +177,20 @@ function handleRegistration($pdo) {
             throw new Exception('Registration is currently disabled');
         }
         
+        // Check if employee exists in employees table
+        $empCheckStmt = $pdo->prepare("SELECT full_name, department FROM employees WHERE emp_number = ? AND is_active = 1");
+        $empCheckStmt->execute([$empNumber]);
+        $employee = $empCheckStmt->fetch();
+        
+        if (!$employee) {
+            throw new Exception('Employee not found. Only registered employees can register for this event.');
+        }
+        
+        // Verify that the provided name matches the employee record
+        if (strtolower(trim($staffName)) !== strtolower(trim($employee['full_name']))) {
+            throw new Exception('Employee name does not match our records. Please use the auto-filled name.');
+        }
+        
         // Check if employee number already registered
         if (isEmployeeRegistered($empNumber)) {
             throw new Exception('This employee number is already registered for this event');
@@ -300,22 +314,39 @@ function handleCheckEmployee($pdo) {
             return;
         }
         
+        // Check if employee exists in employees table
+        $stmt = $pdo->prepare("SELECT full_name, department FROM employees WHERE emp_number = ? AND is_active = 1");
+        $stmt->execute([$empNumber]);
+        $employee = $stmt->fetch();
+        
+        if (!$employee) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Employee not found'
+            ]);
+            return;
+        }
+        
         // Check if already registered
         if (isEmployeeRegistered($empNumber)) {
             echo json_encode([
                 'success' => false,
                 'message' => 'This employee number is already registered'
             ]);
-        } else {
-            echo json_encode([
-                'success' => true,
-                'employee' => [
-                    'full_name' => 'Employee',
-                    'email' => null,
-                    'department' => 'General'
-                ]
-            ]);
+            return;
         }
+        
+        // Map department to shift based on existing logic
+        $shiftName = mapDepartmentToShift($employee['department']);
+        
+        // Return employee data for auto-fill
+        echo json_encode([
+            'success' => true,
+            'employee' => [
+                'name' => $employee['full_name'],
+                'shift' => $shiftName
+            ]
+        ]);
         
     } catch (Exception $e) {
         echo json_encode([

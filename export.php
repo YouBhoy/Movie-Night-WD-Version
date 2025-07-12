@@ -1,99 +1,189 @@
 <?php
 require_once 'config.php';
 
-// Check admin authentication
+// Simple admin authentication check
+session_start();
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header('Location: admin-login.php');
+    header('Location: admin.php');
     exit;
 }
 
-// Validate CSRF token
-if (!isset($_GET['csrf_token']) || !validateCSRFToken($_GET['csrf_token'])) {
-    die('Invalid security token');
-}
-
-$pdo = getDBConnection();
-$exportType = $_GET['type'] ?? 'csv';
+// Get export type
+$type = $_GET['type'] ?? 'registrations';
 
 try {
-    // Get all registrations with related data
-    $stmt = $pdo->prepare("
-        SELECT 
-            r.id,
-            r.emp_number,
-            r.staff_name,
-            r.email,
-            r.attendee_count,
-            r.selected_seats,
-            r.registration_date,
-            r.ip_address,
-            h.hall_name,
-            s.shift_name
-        FROM registrations r
-        JOIN cinema_halls h ON r.hall_id = h.id
-        JOIN shifts s ON r.shift_id = s.id
-        WHERE r.status = 'active'
-        ORDER BY r.registration_date DESC
-    ");
-    $stmt->execute();
-    $registrations = $stmt->fetchAll();
+    $pdo = getDBConnection();
     
-    if ($exportType === 'csv') {
-        // Set headers for CSV download
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="movie_night_registrations_' . date('Y-m-d_H-i-s') . '.csv"');
-        header('Cache-Control: no-cache, must-revalidate');
-        
-        // Create file pointer
-        $output = fopen('php://output', 'w');
-        
-        // Add CSV headers
-        fputcsv($output, [
-            'Registration ID',
-            'Employee Number',
-            'Staff Name',
-            'Email',
-            'Number of Attendees',
-            'Cinema Hall',
-            'Shift',
-            'Selected Seats',
-            'Registration Date',
-            'IP Address'
-        ]);
-        
-        // Add data rows
-        foreach ($registrations as $reg) {
-            $selectedSeats = json_decode($reg['selected_seats'], true);
-            $seatsString = is_array($selectedSeats) ? implode(', ', $selectedSeats) : '';
+    // Set headers for CSV download
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $type . '_' . date('Y-m-d_H-i-s') . '.csv"');
+    
+    // Create output stream
+    $output = fopen('php://output', 'w');
+    
+    // Add BOM for UTF-8
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+    
+    switch ($type) {
+        case 'registrations':
+            exportRegistrations($pdo, $output);
+            break;
             
-            fputcsv($output, [
-                $reg['id'],
-                $reg['emp_number'],
-                $reg['staff_name'],
-                $reg['email'] ?? '',
-                $reg['attendee_count'],
-                $reg['hall_name'],
-                $reg['shift_name'],
-                $seatsString,
-                $reg['registration_date'],
-                $reg['ip_address'] ?? ''
-            ]);
-        }
-        
-        fclose($output);
-        
-        // Log admin activity
-        logAdminActivity('export_registrations', 'registrations', null, [
-            'export_type' => 'csv', 
-            'record_count' => count($registrations)
-        ]);
-        
-    } else {
-        throw new Exception('Unsupported export type');
+        case 'attendees':
+            exportAttendees($pdo, $output);
+            break;
+            
+        case 'employees':
+            exportEmployees($pdo, $output);
+            break;
+            
+        case 'seats':
+            exportSeats($pdo, $output);
+            break;
+            
+        default:
+            fputcsv($output, ['Error', 'Invalid export type']);
+            break;
     }
     
+    fclose($output);
+    
 } catch (Exception $e) {
-    error_log("Export Error: " . $e->getMessage());
-    die('Export failed: ' . $e->getMessage());
+    // If there's an error, redirect back to admin with error message
+    header('Location: admin.php?tab=export&error=' . urlencode('Export failed: ' . $e->getMessage()));
+    exit;
+}
+
+function exportRegistrations($pdo, $output) {
+    // Check if registrations table exists
+    $checkStmt = $pdo->query("SHOW TABLES LIKE 'registrations'");
+    if ($checkStmt->rowCount() === 0) {
+        fputcsv($output, ['No registrations table found']);
+        return;
+    }
+    
+    // Headers
+    fputcsv($output, [
+        'Employee Number',
+        'Staff Name',
+        'Number of Attendees',
+        'Selected Seats',
+        'Registration Date & Time',
+        'Status'
+    ]);
+    
+    // Get all registrations
+    $stmt = $pdo->query("
+        SELECT emp_number, staff_name, attendee_count, selected_seats, created_at, status
+        FROM registrations 
+        ORDER BY created_at DESC
+    ");
+    
+    while ($row = $stmt->fetch()) {
+        fputcsv($output, [
+            $row['emp_number'],
+            $row['staff_name'],
+            $row['attendee_count'] ?? 1,
+            $row['selected_seats'] ?? 'N/A',
+            $row['created_at'],
+            $row['status']
+        ]);
+    }
+}
+
+function exportAttendees($pdo, $output) {
+    // Check if registrations table exists
+    $checkStmt = $pdo->query("SHOW TABLES LIKE 'registrations'");
+    if ($checkStmt->rowCount() === 0) {
+        fputcsv($output, ['No registrations table found']);
+        return;
+    }
+    
+    // Headers
+    fputcsv($output, [
+        'Employee Number',
+        'Staff Name',
+        'Registration Date'
+    ]);
+    
+    // Get all active registrations
+    $stmt = $pdo->query("
+        SELECT emp_number, staff_name, created_at
+        FROM registrations 
+        WHERE status = 'active'
+        ORDER BY created_at DESC
+    ");
+    
+    while ($row = $stmt->fetch()) {
+        fputcsv($output, [
+            $row['emp_number'],
+            $row['staff_name'],
+            date('Y-m-d', strtotime($row['created_at']))
+        ]);
+    }
+}
+
+function exportEmployees($pdo, $output) {
+    // Check if employees table exists
+    $checkStmt = $pdo->query("SHOW TABLES LIKE 'employees'");
+    if ($checkStmt->rowCount() === 0) {
+        fputcsv($output, ['No employees table found']);
+        return;
+    }
+    
+    // Headers
+    fputcsv($output, [
+        'Employee Number',
+        'Full Name',
+        'Department'
+    ]);
+    
+    // Get all employees
+    $stmt = $pdo->query("
+        SELECT emp_number, full_name, department
+        FROM employees 
+        ORDER BY full_name
+    ");
+    
+    while ($row = $stmt->fetch()) {
+        fputcsv($output, [
+            $row['emp_number'],
+            $row['full_name'],
+            $row['department'] ?? ''
+        ]);
+    }
+}
+
+function exportSeats($pdo, $output) {
+    // Check if seats table exists
+    $checkStmt = $pdo->query("SHOW TABLES LIKE 'seats'");
+    if ($checkStmt->rowCount() === 0) {
+        fputcsv($output, ['No seats table found']);
+        return;
+    }
+    
+    // Headers
+    fputcsv($output, [
+        'Seat Number',
+        'Status',
+        'Hall',
+        'Last Updated'
+    ]);
+    
+    // Get all seats
+    $stmt = $pdo->query("
+        SELECT seat_number, status, hall_id, updated_at
+        FROM seats 
+        ORDER BY seat_number
+    ");
+    
+    while ($row = $stmt->fetch()) {
+        fputcsv($output, [
+            $row['seat_number'],
+            $row['status'],
+            $row['hall_id'] ?? 'N/A',
+            $row['updated_at'] ?? 'N/A'
+        ]);
+    }
 }
 ?>

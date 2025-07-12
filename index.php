@@ -46,6 +46,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
     <meta name="description" content="<?php echo sanitizeInput($eventDescription); ?>">
     <meta name="robots" content="noindex, nofollow">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
     <style>
         :root {
@@ -183,6 +184,61 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             background: rgba(255, 255, 255, 0.2);
         }
         
+        /* Find My Registration Button */
+        .find-registration-link {
+            color: #fff;
+            background: none;
+            border: none;
+            border-radius: 0;
+            font-weight: 400;
+            padding: 0 16px;
+            margin: 0 5px;
+            transition: color 0.2s;
+        }
+        .find-registration-link:hover,
+        .find-registration-link:focus {
+            color: var(--primary-color);
+            background: none;
+            box-shadow: none;
+            text-decoration: underline;
+        }
+        .find-registration-link i {
+            display: none;
+        }
+        
+        /* Find Registration Notice */
+        .find-registration-notice {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .find-registration-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #FFD700;
+            text-decoration: none;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .find-registration-btn:hover {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: #FFD700;
+            color: #FFD700;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
+        }
+        
+        .find-registration-btn i {
+            margin-right: 8px;
+            font-size: 12px;
+        }
+        
         /* Gap Warning Modal */
         .gap-warning-modal {
             position: fixed;
@@ -286,6 +342,9 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                 <nav class="nav">
                     <a href="#home" class="nav-link">Home</a>
                     <a href="#register" class="nav-link">Register</a>
+                    <a href="find-registration.php" class="nav-link find-registration-link">
+                        <i class="fas fa-search"></i> Find Registration
+                    </a>
                     <a href="#about" class="nav-link">About</a>
                 </nav>
             </div>
@@ -339,8 +398,14 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             <div class="registration-container">
                 <!-- Registration Form -->
                 <div class="registration-form-container">
-                    <div class="open-access-notice">
-                        🎉 <strong>Open Registration!</strong> Anyone can register - just enter any employee number (e.g., EMP001, WD123, etc.) and your name to get started!
+                    <div class="employee-notice">
+                        👥 <strong>Employee Registration</strong> Enter your employee number to auto-fill your details and register for the movie night!
+                    </div>
+                    
+                    <div class="find-registration-notice">
+                        <a href="find-registration.php" class="find-registration-btn">
+                            <i class="fas fa-search"></i> Forgot your seats? Find your registration with employee number
+                        </a>
                     </div>
                     
                     <form id="registrationForm" class="registration-form">
@@ -351,30 +416,26 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                             <label for="emp_number" class="form-label">Employee Number *</label>
                             <input type="text" id="emp_number" name="emp_number" class="form-control" 
                                    required 
-                                   placeholder="e.g., EMP001, WD123, USER456" 
-                                   title="Enter any unique identifier">
-                            <div class="form-help open-access">Enter any unique employee number or identifier</div>
+                                   placeholder="Enter your employee number" 
+                                   title="Enter your employee number">
+                            <div class="form-help">Enter your employee number to auto-fill your details</div>
                         </div>
 
                         <div class="form-group">
                             <label for="staff_name" class="form-label">Full Name *</label>
                             <input type="text" id="staff_name" name="staff_name" class="form-control" 
                                    required minlength="2" maxlength="255"
-                                   placeholder="Enter your full name">
+                                   placeholder="Name will be auto-filled"
+                                   readonly>
+                            <div class="form-help">Name is auto-filled from employee records</div>
                         </div>
 
                         <div class="form-group">
                             <label for="shift_id" class="form-label">Shift *</label>
-                            <select id="shift_id" name="shift_id" class="form-select" required>
-                                <option value="">Select your shift</option>
-                                <?php foreach ($shifts as $shift): ?>
-                                <option value="<?php echo (int)$shift['id']; ?>" 
-                                        data-hall-id="<?php echo (int)$shift['hall_id']; ?>">
-                                    <?php echo sanitizeInput($shift['shift_name']); ?>
-                                </option>
-                                <?php endforeach; ?>
+                            <select id="shift_id" name="shift_id" class="form-select" required disabled>
+                                <option value="">Shift will be auto-filled</option>
                             </select>
-                            <div class="form-help">Choose any shift - your cinema hall will be assigned automatically</div>
+                            <div class="form-help">Shift is auto-filled from employee records</div>
                         </div>
 
                         <div class="form-group" id="hall_display" style="display: none;">
@@ -445,11 +506,12 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     <div class="info-card">
                         <h3 class="info-title">Registration Guidelines</h3>
                         <ul class="info-list">
-                            <li>Open to everyone - no employee verification required</li>
-                            <li>Each employee number can register only once</li>
+                            <li><strong>Employee-only registration</strong> - Only registered employees can participate</li>
+                            <li>Enter your employee number to auto-fill your details</li>
+                            <li>Each employee can register only once</li>
                             <li>Maximum 3 attendees per registration (both halls)</li>
                             <li><strong>Flexible seat selection with smart suggestions</strong></li>
-                            <li>Cinema hall assigned automatically based on shift</li>
+                            <li>Cinema hall assigned automatically based on your shift</li>
                             <li>Please arrive 15 minutes before screening time</li>
                         </ul>
                     </div>
@@ -521,7 +583,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             <div class="about-content">
                 <div class="about-text">
                     <p><?php echo sanitizeInput($eventDescription); ?></p>
-                    <p>This open screening welcomes everyone to join us for a memorable entertainment experience.</p>
+                    <p>This exclusive employee screening welcomes all registered employees to join us for a memorable entertainment experience.</p>
                 </div>
                 
                 <div class="about-features">
@@ -765,17 +827,89 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             // Form submission
             form.addEventListener('submit', handleFormSubmission);
 
-            // Input validation
+            // Employee number lookup
             document.getElementById('emp_number').addEventListener('input', function() {
                 this.value = this.value.toUpperCase();
                 updateSubmitButtonState();
             });
 
-            document.getElementById('staff_name').addEventListener('input', updateSubmitButtonState);
+            // Employee number lookup on blur (when user finishes typing)
+            document.getElementById('emp_number').addEventListener('blur', function() {
+                const empNumber = this.value.trim();
+                if (empNumber.length >= 2) {
+                    lookupEmployee(empNumber);
+                }
+            });
+
+            // Remove staff_name input listener since it's now readonly
+            // document.getElementById('staff_name').addEventListener('input', updateSubmitButtonState);
+        }
+
+        function lookupEmployee(empNumber) {
+            if (!empNumber || empNumber.length < 2) return;
+            
+            showLoading(true);
+            
+            fetch('api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=check_employee&emp_number=${encodeURIComponent(empNumber)}&csrf_token=${csrfToken}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Auto-fill employee details
+                    document.getElementById('staff_name').value = data.employee.name;
+                    
+                    // Find and select the matching shift
+                    const shiftSelect = document.getElementById('shift_id');
+                    const shiftName = data.employee.shift;
+                    
+                    // Enable shift select and populate options
+                    shiftSelect.disabled = false;
+                    shiftSelect.innerHTML = '<option value="">Select your shift</option>';
+                    
+                    // Add the employee's shift as the only option
+                    const option = document.createElement('option');
+                    option.value = getShiftIdByName(shiftName);
+                    option.textContent = shiftName;
+                    option.dataset.hallId = getHallIdForShift(shiftName);
+                    shiftSelect.appendChild(option);
+                    
+                    // Auto-select the shift
+                    shiftSelect.value = option.value;
+                    
+                    // Trigger shift change event to load seats
+                    const event = new Event('change');
+                    shiftSelect.dispatchEvent(event);
+                    
+                    showSuccess('Employee details loaded successfully!');
+                } else {
+                    // Clear fields and show error
+                    document.getElementById('staff_name').value = '';
+                    document.getElementById('shift_id').innerHTML = '<option value="">Shift will be auto-filled</option>';
+                    document.getElementById('shift_id').disabled = true;
+                    resetSeatSelection();
+                    showError(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error looking up employee:', error);
+                showError('Failed to look up employee. Please try again.');
+            })
+            .finally(() => {
+                showLoading(false);
+            });
+        }
+
+        function getShiftIdByName(shiftName) {
+            // Find the shift ID from the shifts data
+            const shift = shiftsData.find(s => s.shift_name === shiftName);
+            return shift ? shift.id : null;
         }
 
         function getHallIdForShift(shiftName) {
-            // Default mapping based on shift names
+            // Updated mapping based on shift names
             if (shiftName.includes('Normal Shift') || shiftName.includes('Crew C')) {
                 return 1;
             } else if (shiftName.includes('Crew A') || shiftName.includes('Crew B')) {
@@ -1274,6 +1408,48 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             const messageElement = document.getElementById('errorMessage');
             messageElement.textContent = message;
             modal.style.display = 'flex';
+        }
+
+        function showSuccess(message) {
+            // Create a temporary success notification
+            const notification = document.createElement('div');
+            notification.className = 'success-notification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #22c55e;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                z-index: 3000;
+                font-weight: 500;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            
+            // Add animation styles
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
         }
 
         function closeModal(modalId) {
