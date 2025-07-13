@@ -147,7 +147,6 @@ function handleRegistration($pdo) {
         $staffName = trim($_POST['staff_name'] ?? '');
         $attendeeCount = filter_var($_POST['attendee_count'] ?? '', FILTER_VALIDATE_INT);
         $hallId = filter_var($_POST['hall_id'] ?? '', FILTER_VALIDATE_INT);
-        $shiftId = filter_var($_POST['shift_id'] ?? '', FILTER_VALIDATE_INT);
         $selectedSeatsJson = $_POST['selected_seats'] ?? '';
         
         // Basic validation
@@ -163,8 +162,8 @@ function handleRegistration($pdo) {
             throw new Exception('Invalid attendee count. Maximum 3 attendees allowed.');
         }
         
-        if (!$hallId || !$shiftId) {
-            throw new Exception('Please select a shift');
+        if (!$hallId) {
+            throw new Exception('Please select a hall');
         }
         
         $selectedSeats = json_decode($selectedSeatsJson, true);
@@ -177,14 +176,15 @@ function handleRegistration($pdo) {
             throw new Exception('Registration is currently disabled');
         }
         
-        // Check if employee exists in employees table
+        // Check if employee exists in employees table and get department
         $empCheckStmt = $pdo->prepare("SELECT full_name, department FROM employees WHERE emp_number = ? AND is_active = 1");
         $empCheckStmt->execute([$empNumber]);
         $employee = $empCheckStmt->fetch();
-        
         if (!$employee) {
-            throw new Exception('Employee not found. Only registered employees can register for this event.');
+            throw new Exception('Employee not found');
         }
+        // Map department to shift
+        $shiftName = mapDepartmentToShift($employee['department']);
         
         // Verify that the provided name matches the employee record
         if (strtolower(trim($staffName)) !== strtolower(trim($employee['full_name']))) {
@@ -313,8 +313,7 @@ function handleCheckEmployee($pdo) {
             ]);
             return;
         }
-        
-        // Check if employee exists in employees table
+        // Check if employee exists in employees table, fetch department
         $stmt = $pdo->prepare("SELECT full_name, department FROM employees WHERE emp_number = ? AND is_active = 1");
         $stmt->execute([$empNumber]);
         $employee = $stmt->fetch();
@@ -326,7 +325,6 @@ function handleCheckEmployee($pdo) {
             ]);
             return;
         }
-        
         // Check if already registered
         if (isEmployeeRegistered($empNumber)) {
             echo json_encode([
@@ -335,15 +333,14 @@ function handleCheckEmployee($pdo) {
             ]);
             return;
         }
-        
-        // Map department to shift based on existing logic
+        // Map department to shift
         $shiftName = mapDepartmentToShift($employee['department']);
-        
         // Return employee data for auto-fill
         echo json_encode([
             'success' => true,
             'employee' => [
                 'name' => $employee['full_name'],
+                'department' => $employee['department'],
                 'shift' => $shiftName
             ]
         ]);

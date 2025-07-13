@@ -27,6 +27,21 @@ $registrationEnabled = isRegistrationEnabled();
 // Generate CSRF token
 $csrfToken = generateCSRFToken();
 
+// Helper function to convert hex to RGB
+function hexToRgb($hex) {
+    $hex = str_replace('#', '', $hex);
+    if (strlen($hex) == 3) {
+        $r = hexdec(substr($hex, 0, 1) . substr($hex, 0, 1));
+        $g = hexdec(substr($hex, 1, 1) . substr($hex, 1, 1));
+        $b = hexdec(substr($hex, 2, 1) . substr($hex, 2, 1));
+    } else {
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+    }
+    return "$r, $g, $b";
+}
+
 // Default values
 $movieName = $settings['movie_name'] ?? 'Thunderbolts*';
 $movieDate = $settings['movie_date'] ?? 'Friday, 16 May 2025';
@@ -35,7 +50,8 @@ $movieLocation = $settings['movie_location'] ?? 'WD Campus Cinema Complex';
 $eventDescription = $settings['event_description'] ?? 'Join us for an exclusive movie screening event!';
 $primaryColor = $settings['primary_color'] ?? '#FFD700';
 $secondaryColor = $settings['secondary_color'] ?? '#2E8BFF';
-$footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal Movie Night Event';
+$companyName = $settings['company_name'] ?? 'Western Digital';
+$footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal Movie Night Event";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -52,6 +68,14 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         :root {
             --primary-color: <?php echo sanitizeInput($primaryColor); ?>;
             --secondary-color: <?php echo sanitizeInput($secondaryColor); ?>;
+            --primary-color-rgb: <?php 
+                $primaryRGB = hexToRgb($primaryColor);
+                echo $primaryRGB ? $primaryRGB : '255, 215, 0';
+            ?>;
+            --secondary-color-rgb: <?php 
+                $secondaryRGB = hexToRgb($secondaryColor);
+                echo $secondaryRGB ? $secondaryRGB : '46, 139, 255';
+            ?>;
         }
         
         /* Enhanced Seat Selection Styling */
@@ -62,8 +86,8 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         }
         
         .seat.suggested {
-            background: rgba(255, 215, 0, 0.4) !important;
-            border-color: #ffd700 !important;
+            background: rgba(var(--primary-color-rgb), 0.4) !important;
+            border-color: var(--primary-color) !important;
             animation: pulse 1.5s infinite;
         }
         
@@ -128,7 +152,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         }
         
         .selected-seats-preview h4 {
-            color: #ffd700;
+            color: var(--primary-color);
             font-size: 0.9rem;
             margin-bottom: 0.5rem;
         }
@@ -217,9 +241,9 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
             align-items: center;
             padding: 10px 20px;
             background: rgba(255, 255, 255, 0.1);
-            color: #FFD700;
+            color: var(--primary-color);
             text-decoration: none;
-            border: 1px solid rgba(255, 215, 0, 0.3);
+            border: 1px solid rgba(var(--primary-color-rgb), 0.3);
             border-radius: 25px;
             font-size: 14px;
             font-weight: 500;
@@ -227,11 +251,11 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
         }
         
         .find-registration-btn:hover {
-            background: rgba(255, 215, 0, 0.1);
-            border-color: #FFD700;
-            color: #FFD700;
+            background: rgba(var(--primary-color-rgb), 0.1);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
+            box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.2);
         }
         
         .find-registration-btn i {
@@ -540,23 +564,24 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
 
                     <div class="info-card">
                         <h3 class="info-title">Hall Assignment</h3>
-                        <div class="hall-assignment-info">
+                        <div class="hall-assignment-info" id="dynamic-hall-assignment">
+                            <?php foreach ($halls as $hall): ?>
                             <div class="assignment-row">
-                                <span class="assignment-label">🎬 Cinema Hall 1:</span>
+                                <span class="assignment-label"><?php echo $hall['id'] === 1 ? '🎬' : '🎭'; ?> <?php echo htmlspecialchars($hall['hall_name']); ?>:</span>
                                 <div class="assignment-shifts">
-                                    <span>• Normal Shift</span>
-                                    <span>• Crew C (Day Shift)</span>
+                                    <?php
+                                    // Get shifts for this hall
+                                    $hallShifts = array_filter($shifts, function($shift) use ($hall) {
+                                        return $shift['hall_id'] == $hall['id'];
+                                    });
+                                    foreach ($hallShifts as $shift) {
+                                        echo '<span>• ' . htmlspecialchars($shift['shift_name']) . '</span>';
+                                    }
+                                    ?>
                                     <span>• Max 3 attendees</span>
                                 </div>
                             </div>
-                            <div class="assignment-row">
-                                <span class="assignment-label">🎭 Cinema Hall 2:</span>
-                                <div class="assignment-shifts">
-                                    <span>• Crew A (Off/Rest Day)</span>
-                                    <span>• Crew B (Off/Rest Day)</span>
-                                    <span>• Max 3 attendees</span>
-                                </div>
-                            </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 </div>
@@ -715,6 +740,7 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
     <script>
         // Configuration
         const shiftsData = <?php echo json_encode($shifts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        const hallsData = <?php echo json_encode($halls, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         const csrfToken = '<?php echo $csrfToken; ?>';
         const MAX_ATTENDEES = <?php echo MAX_ATTENDEES_PER_BOOKING; ?>;
         const registrationEnabled = <?php echo $registrationEnabled ? 'true' : 'false'; ?>;
@@ -780,10 +806,12 @@ $footerText = $settings['footer_text'] ?? '© 2025 Western Digital – Internal 
                     hiddenHallId.value = hallId;
                     
                     // Show assigned hall
-                    const hallName = hallId === 1 ? 'Cinema Hall 1' : 'Cinema Hall 2';
+                    const hall = hallsData.find(h => h.id == hallId);
+                    const hallName = hall ? hall.hall_name : `Cinema Hall ${hallId}`;
+                    const hallIcon = hallId === 1 ? '🎬' : '🎭';
                     assignedHall.innerHTML = `
                         <div class="hall-info">
-                            <span class="hall-icon">${hallId === 1 ? '🎬' : '🎭'}</span>
+                            <span class="hall-icon">${hallIcon}</span>
                             <div class="hall-details">
                                 <strong>${hallName}</strong>
                                 <p>Automatically assigned for ${shiftName} (Max 3 attendees)</p>

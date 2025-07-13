@@ -182,15 +182,41 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
     }
 }
 
+// Helper function to convert hex to RGB
+function hexToRgb($hex) {
+    $hex = str_replace('#', '', $hex);
+    if (strlen($hex) == 3) {
+        $r = hexdec(substr($hex, 0, 1) . substr($hex, 0, 1));
+        $g = hexdec(substr($hex, 1, 1) . substr($hex, 1, 1));
+        $b = hexdec(substr($hex, 2, 1) . substr($hex, 2, 1));
+    } else {
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+    }
+    return "$r, $g, $b";
+}
+
 // Get database connection
 try {
     $pdo = getDBConnection();
     
+    // Get event settings
+    $settingsStmt = $pdo->prepare("SELECT setting_key, setting_value FROM event_settings WHERE is_public = 1");
+    $settingsStmt->execute();
+    $settings = [];
+    while ($row = $settingsStmt->fetch()) {
+        $settings[$row['setting_key']] = $row['setting_value'];
+    }
+    
     // Get halls data for JavaScript
     $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
+    // Fetch all shifts for the employee form dropdown
+    $shifts = $pdo->query("SELECT id, shift_name FROM shifts WHERE is_active = 1 ORDER BY id")->fetchAll();
 } catch (Exception $e) {
     $db_error = 'Database connection failed: ' . $e->getMessage();
     $halls = [];
+    $settings = [];
 }
 
 // Get current tab
@@ -206,6 +232,19 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: <?php echo $settings['primary_color'] ?? '#FFD700'; ?>;
+            --secondary-color: <?php echo $settings['secondary_color'] ?? '#2E8BFF'; ?>;
+            --primary-color-rgb: <?php 
+                $primaryRGB = hexToRgb($settings['primary_color'] ?? '#FFD700');
+                echo $primaryRGB ? $primaryRGB : '255, 215, 0';
+            ?>;
+            --secondary-color-rgb: <?php 
+                $secondaryRGB = hexToRgb($settings['secondary_color'] ?? '#2E8BFF');
+                echo $secondaryRGB ? $secondaryRGB : '46, 139, 255';
+            ?>;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -234,7 +273,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         .header h1 {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #FFD700;
+            color: var(--primary-color);
             margin-bottom: 0.5rem;
         }
         
@@ -318,8 +357,8 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         
         .form-group input:focus {
             outline: none;
-            border-color: #FFD700;
-            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);
         }
         
         .btn {
@@ -336,12 +375,12 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
         
         .btn-primary {
-            background: #FFD700;
+            background: var(--primary-color);
             color: #000;
         }
         
         .btn-primary:hover {
-            background: #e6c200;
+            background: var(--secondary-color);
             transform: translateY(-2px);
         }
         
@@ -682,6 +721,10 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 <i class="fas fa-arrow-left"></i> Back to Registration
             </a>
             
+            <a href="admin-dashboard.php" class="back-to-dashboard-link" style="position:absolute;top:0;left:180px;color:#94a3b8;text-decoration:none;font-size:0.9rem;padding:0.5rem 1rem;border:1px solid rgba(255,255,255,0.2);border-radius:8px;transition:all 0.3s ease;">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            
             <div class="header">
                 <h1><i class="fas fa-film"></i> Admin Dashboard</h1>
                 <p>Welcome back, <?php echo htmlspecialchars($_SESSION['admin_username']); ?>!</p>
@@ -906,6 +949,46 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                 <div style="display: flex; gap: 0.5rem;">
                                     <input type="number" id="max_attendees" name="max_attendees" min="1" max="10" value="3">
                                     <button type="button" class="btn btn-primary" onclick="saveSetting('max_attendees')">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="default_seat_count">🪑 Default Seat Count</label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="number" id="default_seat_count" name="default_seat_count" min="1" value="72">
+                                    <button type="button" class="btn btn-primary" onclick="saveSetting('default_seat_count')">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="primary_color">🎨 Primary Color</label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="color" id="primary_color" name="primary_color" value="#FFD700">
+                                    <button type="button" class="btn btn-primary" onclick="saveSetting('primary_color')">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="secondary_color">🎨 Secondary Color</label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="color" id="secondary_color" name="secondary_color" value="#2E8BFF">
+                                    <button type="button" class="btn btn-primary" onclick="saveSetting('secondary_color')">
+                                        <i class="fas fa-save"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="company_name">🏢 Company Name</label>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="text" id="company_name" name="company_name" placeholder="Enter company name" value="Western Digital">
+                                    <button type="button" class="btn btn-primary" onclick="saveSetting('company_name')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
@@ -1142,6 +1225,10 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         if (settings.movie_time) document.getElementById('movie_time').value = settings.movie_time;
                         if (settings.venue_name) document.getElementById('venue_name').value = settings.venue_name;
                         if (settings.max_attendees) document.getElementById('max_attendees').value = settings.max_attendees;
+                        if (settings.default_seat_count) document.getElementById('default_seat_count').value = settings.default_seat_count;
+                        if (settings.primary_color) document.getElementById('primary_color').value = settings.primary_color;
+                        if (settings.secondary_color) document.getElementById('secondary_color').value = settings.secondary_color;
+                        if (settings.company_name) document.getElementById('company_name').value = settings.company_name;
                         showToast('Settings loaded successfully', 'success');
                     } else {
                         showToast('Error loading settings: ' + data.message, 'error');
@@ -1331,7 +1418,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         </div>
                         <div>
                             <button class="btn btn-${emp.is_active == 1 ? 'warning' : 'success'} btn-sm" onclick="toggleEmployeeStatus(${emp.id}, ${emp.is_active})">
-                                <i class="fas fa-${emp.is_active == 1 ? 'pause' : 'play'}"></i> ${emp.is_active == 1 ? 'Deactivate' : 'Activate'}
+                                <i class="fas fa-${emp.is_active == 1 ? 'ban' : 'check'}"></i> ${emp.is_active == 1 ? 'Deactivate' : 'Activate'}
                             </button>
                             <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${emp.id})">
                                 <i class="fas fa-trash"></i> Delete
@@ -1349,39 +1436,26 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             const empNumber = document.getElementById('new_emp_number').value.trim();
             const fullName = document.getElementById('new_full_name').value.trim();
             const department = document.getElementById('new_department').value.trim();
-            
-            if (!empNumber || !fullName) {
-                showToast('Employee number and name are required', 'error');
+            if (!empNumber || !fullName || !department) {
+                showToast('Please fill in all fields', 'error');
                 return;
             }
             
-            const formData = new FormData();
-            formData.append('action', 'add_employee');
-            formData.append('emp_number', empNumber);
-            formData.append('full_name', fullName);
-            formData.append('department', department);
-            
-            fetch('admin.php', {
+            fetch('admin-api.php', {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=add_employee&emp_number=${encodeURIComponent(empNumber)}&full_name=${encodeURIComponent(fullName)}&department=${encodeURIComponent(department)}`
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     showToast('Employee added successfully', 'success');
-                    // Clear form
-                    document.getElementById('new_emp_number').value = '';
-                    document.getElementById('new_full_name').value = '';
-                    document.getElementById('new_department').value = '';
-                    // Reload employee list
-                    loadEmployees();
+                    setTimeout(loadEmployees, 1000);
                 } else {
-                    showToast('Error adding employee: ' + data.message, 'error');
+                    showToast(data.message, 'error');
                 }
             })
-            .catch(error => {
-                showToast('Error adding employee', 'error');
-            });
+            .catch(() => showToast('Error adding employee', 'error'));
         }
         
         // Delete employee
@@ -1512,6 +1586,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 }
             })
             .catch(() => showToast('Error updating hall name', 'error'));
-        </script>
+        }
+    </script>
 </body>
 </html>

@@ -140,6 +140,27 @@ try {
             echo json_encode(['success' => true, 'employees' => $employees]);
             break;
             
+        case 'add_employee':
+            $emp_number = trim($_POST['emp_number'] ?? '');
+            $full_name = trim($_POST['full_name'] ?? '');
+            $shift_id = (int)($_POST['shift_id'] ?? 0);
+            if (empty($emp_number) || empty($full_name) || !$shift_id) {
+                echo json_encode(['success' => false, 'message' => 'All fields are required']);
+                exit;
+            }
+            // Check if employee already exists
+            $checkStmt = $pdo->prepare("SELECT id FROM employees WHERE emp_number = ?");
+            $checkStmt->execute([$emp_number]);
+            if ($checkStmt->fetch()) {
+                echo json_encode(['success' => false, 'message' => 'Employee number already exists']);
+                exit;
+            }
+            // Insert new employee (department left blank for legacy)
+            $stmt = $pdo->prepare("INSERT INTO employees (emp_number, full_name, department, shift_id, is_active) VALUES (?, ?, ?, ?, 1)");
+            $stmt->execute([$emp_number, $full_name, '', $shift_id]);
+            echo json_encode(['success' => true, 'message' => 'Employee added successfully']);
+            exit;
+            
         case 'get_statistics':
             $stats = [];
             
