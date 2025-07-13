@@ -585,6 +585,7 @@ $csrfToken = generateCSRFToken();
                 </div>
             </div>
             <div class="header-actions">
+                <a href="seat-layout-editor.php" class="btn btn-secondary">🪑 Seat Layout</a>
                 <a href="export.php" class="btn btn-secondary">📊 Export Data</a>
                 <a href="admin.php" class="btn btn-primary">⚙️ Settings</a>
                 <a href="logout.php" class="btn btn-danger">🚪 Logout</a>

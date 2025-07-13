@@ -185,8 +185,12 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
 // Get database connection
 try {
     $pdo = getDBConnection();
+    
+    // Get halls data for JavaScript
+    $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
 } catch (Exception $e) {
     $db_error = 'Database connection failed: ' . $e->getMessage();
+    $halls = [];
 }
 
 // Get current tab
@@ -691,12 +695,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     <a href="?tab=dashboard" class="nav-tab <?php echo $current_tab === 'dashboard' ? 'active' : ''; ?>">
                         <i class="fas fa-chart-bar"></i> Dashboard
                     </a>
-                    <a href="?tab=registrations" class="nav-tab <?php echo $current_tab === 'registrations' ? 'active' : ''; ?>">
-                        <i class="fas fa-users"></i> Registrations
-                    </a>
-                    <a href="?tab=seats" class="nav-tab <?php echo $current_tab === 'seats' ? 'active' : ''; ?>">
-                        <i class="fas fa-chair"></i> Seat Layout
-                    </a>
+                    <!-- Removed Seat Layout Tab -->
                     <a href="?tab=settings" class="nav-tab <?php echo $current_tab === 'settings' ? 'active' : ''; ?>">
                         <i class="fas fa-cog"></i> Event Settings
                     </a>
@@ -777,9 +776,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                             <a href="?tab=registrations" class="btn btn-primary">
                                 <i class="fas fa-users"></i> Manage Registrations
                             </a>
-                            <a href="?tab=seats" class="btn btn-secondary">
-                                <i class="fas fa-chair"></i> Edit Seat Layout
-                            </a>
+                            <!-- Removed Edit Seat Layout Button -->
                             <a href="export.php" class="btn btn-secondary">
                                 <i class="fas fa-download"></i> Export Data
                             </a>
@@ -797,18 +794,28 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                 <?php
                                 $registrations = [];
                                 if ($tableExists) {
-                                    try {
-                                        $stmt = $pdo->query("
-                                            SELECT emp_number, full_name, department, hall_assigned, created_at 
-                                            FROM registrations 
-                                            WHERE status = 'active' 
-                                            ORDER BY created_at DESC 
-                                            LIMIT 10
-                                        ");
-                                        $registrations = $stmt->fetchAll();
-                                    } catch (Exception $e) {
-                                        $registrations = [];
-                                    }
+                                                                    try {
+                                    $stmt = $pdo->query("
+                                        SELECT 
+                                            r.id,
+                                            r.emp_number,
+                                            r.staff_name,
+                                            r.attendee_count,
+                                            r.selected_seats,
+                                            r.registration_date,
+                                            h.hall_name,
+                                            s.shift_name
+                                        FROM registrations r
+                                        JOIN cinema_halls h ON r.hall_id = h.id
+                                        JOIN shifts s ON r.shift_id = s.id
+                                        WHERE r.status = 'active' 
+                                        ORDER BY r.registration_date DESC 
+                                        LIMIT 10
+                                    ");
+                                    $registrations = $stmt->fetchAll();
+                                } catch (Exception $e) {
+                                    $registrations = [];
+                                }
                                 }
                                 
                                 if ($registrations): ?>
@@ -824,13 +831,13 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                     </div>
                                     <?php foreach ($registrations as $reg): ?>
                                         <div class="table-row">
-                                            <div><?php echo htmlspecialchars($reg['full_name']); ?></div>
+                                            <div><?php echo htmlspecialchars($reg['staff_name']); ?></div>
                                             <div><?php echo htmlspecialchars($reg['emp_number']); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['hall_assigned']); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['department']); ?></div>
+                                            <div><?php echo htmlspecialchars($reg['hall_name']); ?></div>
+                                            <div><?php echo htmlspecialchars($reg['shift_name']); ?></div>
                                             <div><?php echo htmlspecialchars($reg['attendee_count'] ?? 1); ?></div>
                                             <div><?php echo htmlspecialchars($reg['selected_seats'] ?? 'N/A'); ?></div>
-                                            <div><?php echo date('M j, Y g:i A', strtotime($reg['created_at'])); ?></div>
+                                            <div><?php echo date('M j, Y g:i A', strtotime($reg['registration_date'])); ?></div>
                                             <div>
                                                 <button class="btn btn-danger btn-sm" onclick="deleteRegistration(<?php echo $reg['id']; ?>)">
                                                     <i class="fas fa-trash"></i> Delete
@@ -848,51 +855,15 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     </div>
                     
                 <?php elseif ($current_tab === 'registrations'): ?>
-                    <!-- Registrations Tab -->
-                    <div class="search-container">
-                        <input type="text" id="searchInput" class="search-input" placeholder="Search by name or employee number...">
-                    </div>
-                    
-                    <div class="data-table">
-                        <div class="table-header">
-                            <i class="fas fa-users"></i> Registration Management
-                        </div>
-                        <div class="table-content" id="registrationsTable">
-                            <!-- Table content will be loaded via AJAX -->
-                        </div>
+                    <!-- Registrations Tab (Registration Management section removed) -->
+                    <div style="padding: 2rem; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-info-circle"></i> Registration Management has been removed.
                     </div>
                     
                 <?php elseif ($current_tab === 'seats'): ?>
-                    <!-- Seat Layout Tab -->
-                    <div class="seat-layout">
-                        <h2><i class="fas fa-chair"></i> Seat Layout Editor</h2>
-                        <p>Click on seats to change their status</p>
-                        <?php
-                        $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
-                        ?>
-                        <div class="form-group" style="max-width:350px;margin-bottom:1.5rem;">
-                            <label for="hallSelector" style="color:#FFD700;font-weight:600;">Select Cinema Hall:</label>
-                            <select id="hallSelector" class="form-select" style="width:100%;padding:0.5rem;"></select>
-                        </div>
-                        <div class="form-group" style="max-width:350px;margin-bottom:1.5rem;">
-                            <label for="shiftSelector" style="color:#FFD700;font-weight:600;">Select Shift:</label>
-                            <select id="shiftSelector" class="form-select" style="width:100%;padding:0.5rem;">
-                                <option value="">Select a shift</option>
-                            </select>
-                        </div>
-                        <div class="actions">
-                            <button class="btn btn-primary" onclick="saveSeatLayout()">
-                                <i class="fas fa-save"></i> Save Layout
-                            </button>
-                            <button class="btn btn-secondary" onclick="resetSeatLayout()">
-                                <i class="fas fa-undo"></i> Reset
-                            </button>
-                        </div>
-                        <div class="seat-grid" id="seatGrid">
-                            <!-- Seat grid will be generated via JavaScript -->
-                        </div>
+                    <div style="padding: 2rem; text-align: center; color: #94a3b8;">
+                        <i class="fas fa-info-circle"></i> Seat Layout Editor is currently disabled.
                     </div>
-                    
                 <?php elseif ($current_tab === 'settings'): ?>
                     <!-- Event Settings Tab -->
                     <div class="form-section">
@@ -1117,18 +1088,9 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 loadSeatLayout();
             });
             
-            if (document.getElementById('searchInput')) {
-                document.getElementById('searchInput').addEventListener('input', function() {
-                    searchTerm = this.value;
-                    loadRegistrations();
-                });
-            }
-            
             // Load initial data based on current tab
             const currentTab = '<?php echo $current_tab; ?>';
-            if (currentTab === 'registrations') {
-                loadRegistrations();
-            } else if (currentTab === 'seats') {
+            if (currentTab === 'seats') {
                 loadSeatLayout();
             } else if (currentTab === 'employees') {
                 loadEmployees();
@@ -1136,95 +1098,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 loadEventSettings();
             }
         });
-        
-        // Load registrations with search and pagination
-        function loadRegistrations() {
-            const table = document.getElementById('registrationsTable');
-            if (!table) return;
-            
-            table.innerHTML = '<div style="padding: 2rem; text-align: center;"><div class="loading"></div> Loading...</div>';
-            
-            fetch('admin-api.php?action=get_registrations&search=' + encodeURIComponent(searchTerm) + '&page=' + currentPage)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayRegistrations(data.registrations);
-                    } else {
-                        showToast('Error loading registrations: ' + data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    showToast('Error loading registrations', 'error');
-                });
-        }
-        
-        // Display registrations in table
-        function displayRegistrations(registrations) {
-            const table = document.getElementById('registrationsTable');
-            
-            if (registrations.length === 0) {
-                table.innerHTML = '<div style="padding: 2rem; text-align: center; color: #94a3b8;"><i class="fas fa-inbox"></i> No registrations found.</div>';
-                return;
-            }
-            
-            let html = `
-                <div class="table-row" style="font-weight: 600; color: #FFD700;">
-                    <div>Staff Name</div>
-                    <div>Employee #</div>
-                    <div>Attendees</div>
-                    <div>Selected Seats</div>
-                    <div>Registration Date</div>
-                    <div>Actions</div>
-                </div>
-            `;
-            
-            registrations.forEach(reg => {
-                html += `
-                    <div class="table-row">
-                        <div>${reg.staff_name}</div>
-                        <div>${reg.emp_number}</div>
-                        <div>${reg.attendee_count || 1}</div>
-                        <div>${reg.selected_seats || 'N/A'}</div>
-                        <div>${new Date(reg.created_at).toLocaleString()}</div>
-                        <div>
-                            <button class="btn btn-danger btn-sm" onclick="deleteRegistration(${reg.id})">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            table.innerHTML = html;
-        }
-        
-        // Delete registration
-        function deleteRegistration(regId) {
-            if (!confirm('Are you sure you want to delete this registration? This action cannot be undone.')) {
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('action', 'delete_registration');
-            formData.append('reg_id', regId);
-            
-            fetch('admin.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('Registration deleted successfully', 'success');
-                    loadRegistrations();
-                } else {
-                    showToast('Error deleting registration: ' + data.message, 'error');
-                }
-            })
-            .catch(error => {
-                showToast('Error deleting registration', 'error');
-            });
-        }
         
         // Save individual event setting
         function saveSetting(settingKey) {
@@ -1639,7 +1512,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 }
             })
             .catch(() => showToast('Error updating hall name', 'error'));
-        }
-    </script>
+        </script>
 </body>
 </html>

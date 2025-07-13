@@ -49,10 +49,20 @@ try {
             
             // Get registrations
             $stmt = $pdo->prepare("
-                SELECT id, emp_number, staff_name, attendee_count, selected_seats, created_at
-                FROM registrations 
+                SELECT 
+                    r.id,
+                    r.emp_number,
+                    r.staff_name,
+                    r.attendee_count,
+                    r.selected_seats,
+                    r.registration_date,
+                    h.hall_name,
+                    s.shift_name
+                FROM registrations r
+                JOIN cinema_halls h ON r.hall_id = h.id
+                JOIN shifts s ON r.shift_id = s.id
                 $whereClause
-                ORDER BY created_at DESC 
+                ORDER BY r.registration_date DESC 
                 LIMIT ? OFFSET ?
             ");
             
@@ -71,23 +81,29 @@ try {
             break;
             
         case 'get_seat_layout':
-            // Check if seats table exists
-            $checkStmt = $pdo->query("SHOW TABLES LIKE 'seats'");
-            if ($checkStmt->rowCount() === 0) {
-                // Return default seat layout
-                $seats = [];
-                for ($i = 1; $i <= 100; $i++) {
-                    $seats[] = [
-                        'id' => $i,
-                        'status' => 'available',
-                        'seat_number' => $i
-                    ];
-                }
-                echo json_encode(['success' => true, 'seats' => $seats]);
+            $hallId = filter_var($_GET['hall_id'] ?? $_POST['hall_id'] ?? '', FILTER_VALIDATE_INT);
+            $shiftId = filter_var($_GET['shift_id'] ?? $_POST['shift_id'] ?? '', FILTER_VALIDATE_INT);
+            
+            if (!$hallId || !$shiftId) {
+                echo json_encode(['success' => false, 'message' => 'Invalid hall or shift ID']);
                 exit;
             }
             
-            $stmt = $pdo->query("SELECT id, seat_number, status FROM seats ORDER BY seat_number");
+            // Check if seats table exists
+            $checkStmt = $pdo->query("SHOW TABLES LIKE 'seats'");
+            if ($checkStmt->rowCount() === 0) {
+                echo json_encode(['success' => true, 'seats' => []]);
+                exit;
+            }
+            
+            // Get seats for specific hall and shift
+            $stmt = $pdo->prepare("
+                SELECT id, seat_number, row_letter, seat_position, status 
+                FROM seats 
+                WHERE hall_id = ? AND shift_id = ? 
+                ORDER BY row_letter, seat_position
+            ");
+            $stmt->execute([$hallId, $shiftId]);
             $seats = $stmt->fetchAll();
             
             echo json_encode(['success' => true, 'seats' => $seats]);
@@ -135,7 +151,7 @@ try {
                 $stats['total_registrations'] = $stmt->fetchColumn();
                 
                 // Today's registrations
-                $stmt = $pdo->query("SELECT COUNT(*) FROM registrations WHERE DATE(created_at) = CURDATE() AND status = 'active'");
+                $stmt = $pdo->query("SELECT COUNT(*) FROM registrations WHERE DATE(registration_date) = CURDATE() AND status = 'active'");
                 $stats['today_registrations'] = $stmt->fetchColumn();
                 
                 // Hall counts (using default values since hall_assigned doesn't exist)
