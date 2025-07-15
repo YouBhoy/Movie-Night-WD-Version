@@ -798,8 +798,9 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                     const selectedOption = this.options[this.selectedIndex];
                     const shiftName = selectedOption.textContent.trim();
                     
-                    // Determine hall based on shift name
-                    const hallId = getHallIdForShift(shiftName);
+                    // Find the shift object from shiftsData
+                    const shiftObj = shiftsData.find(s => s.shift_name === shiftName);
+                    const hallId = shiftObj ? shiftObj.hall_id : null;
                     
                     currentHallId = hallId;
                     currentShiftId = shiftId;
@@ -893,25 +894,46 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                     const shiftSelect = document.getElementById('shift_id');
                     const shiftName = data.employee.shift;
                     
+                    // Find the shift object from shiftsData
+                    const shiftObj = shiftsData.find(s => s.shift_name === shiftName);
+                    const shiftId = shiftObj ? shiftObj.id : null;
+                    const hallId = shiftObj ? shiftObj.hall_id : null;
+                    
                     // Enable shift select and populate options
                     shiftSelect.disabled = false;
                     shiftSelect.innerHTML = '<option value="">Select your shift</option>';
                     
                     // Add the employee's shift as the only option
                     const option = document.createElement('option');
-                    option.value = getShiftIdByName(shiftName);
+                    option.value = shiftId;
                     option.textContent = shiftName;
-                    option.dataset.hallId = getHallIdForShift(shiftName);
+                    option.dataset.hallId = hallId;
                     shiftSelect.appendChild(option);
                     
                     // Auto-select the shift
                     shiftSelect.value = option.value;
                     
-                    // Trigger shift change event to load seats
-                    const event = new Event('change');
-                    shiftSelect.dispatchEvent(event);
+                    // Set current shift and hall IDs
+                    currentShiftId = shiftId;
+                    currentHallId = hallId;
+                    hiddenHallId.value = hallId;
                     
-                    showSuccess('Employee details loaded successfully!');
+                    // Show assigned hall
+                    const hall = hallsData.find(h => h.id == hallId);
+                    const hallName = hall ? hall.hall_name : `Cinema Hall ${hallId}`;
+                    const hallIcon = hallId === 1 ? '🎬' : '🎭';
+                    assignedHall.innerHTML = `
+                        <div class="hall-info">
+                            <span class="hall-icon">${hallIcon}</span>
+                            <div class="hall-details">
+                                <strong>${hallName}</strong>
+                                <p>Automatically assigned for ${shiftName} (Max 3 attendees)</p>
+                            </div>
+                        </div>
+                    `;
+                    hallDisplay.style.display = 'block';
+                    
+                    loadSeatsForHallAndShift(hallId, shiftId);
                 } else {
                     // Clear fields and show error
                     document.getElementById('staff_name').value = '';
@@ -928,24 +950,6 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
             .finally(() => {
                 showLoading(false);
             });
-        }
-
-        function getShiftIdByName(shiftName) {
-            // Find the shift ID from the shifts data
-            const shift = shiftsData.find(s => s.shift_name === shiftName);
-            return shift ? shift.id : null;
-        }
-
-        function getHallIdForShift(shiftName) {
-            // Updated mapping based on shift names
-            if (shiftName.includes('Normal Shift') || shiftName.includes('Crew C')) {
-                return 1;
-            } else if (shiftName.includes('Crew A') || shiftName.includes('Crew B')) {
-                return 2;
-            }
-            
-            // Fallback to hall 1 if no match
-            return 1;
         }
 
         function loadSeatsForHallAndShift(hallId, shiftId) {

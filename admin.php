@@ -88,10 +88,9 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
             case 'add_employee':
                 $emp_number = $_POST['emp_number'] ?? '';
                 $full_name = $_POST['full_name'] ?? '';
-                $department = $_POST['department'] ?? '';
-                
-                if (empty($emp_number) || empty($full_name)) {
-                    echo json_encode(['success' => false, 'message' => 'Employee number and name are required']);
+                $shift_id = $_POST['shift_id'] ?? '';
+                if (empty($emp_number) || empty($full_name) || empty($shift_id)) {
+                    echo json_encode(['success' => false, 'message' => 'Employee number, name, and shift are required']);
                     exit;
                 }
                 
@@ -105,8 +104,8 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 }
                 
                 // Insert new employee with is_active = 1
-                $stmt = $pdo->prepare("INSERT INTO employees (emp_number, full_name, department, is_active) VALUES (?, ?, ?, 1)");
-                $stmt->execute([$emp_number, $full_name, $department]);
+                $stmt = $pdo->prepare("INSERT INTO employees (emp_number, full_name, shift_id, is_active) VALUES (?, ?, ?, 1)");
+                $stmt->execute([$emp_number, $full_name, $shift_id]);
                 
                 echo json_encode(['success' => true, 'message' => 'Employee added successfully']);
                 exit;
@@ -212,7 +211,7 @@ try {
     // Get halls data for JavaScript
     $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
     // Fetch all shifts for the employee form dropdown
-    $shifts = $pdo->query("SELECT id, shift_name FROM shifts WHERE is_active = 1 ORDER BY id")->fetchAll();
+    $shifts = $pdo->query("SELECT id, shift_name, hall_id FROM shifts ORDER BY id")->fetchAll();
 } catch (Exception $e) {
     $db_error = 'Database connection failed: ' . $e->getMessage();
     $halls = [];
@@ -1020,8 +1019,13 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                     <input type="text" id="new_full_name" placeholder="Enter full name">
                                 </div>
                                 <div class="form-group">
-                                    <label for="new_department">Department</label>
-                                    <input type="text" id="new_department" placeholder="Enter department">
+                                    <label for="new_shift_id">Shift</label>
+                                    <select id="new_shift_id">
+                                        <option value="">Select shift</option>
+                                        <?php foreach ($shifts as $shift): ?>
+                                            <option value="<?php echo $shift['id']; ?>"><?php echo htmlspecialchars($shift['shift_name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                             <button type="button" class="btn btn-primary" onclick="addNewEmployee()">
@@ -1073,7 +1077,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                             <h3 style="color:#FFD700;">Shifts</h3>
                             <div id="shiftNamesTable">
                                 <?php
-                                $shifts = $pdo->query("SELECT id, shift_name FROM shifts ORDER BY id")->fetchAll();
+                                $shifts = $pdo->query("SELECT id, shift_name, hall_id FROM shifts ORDER BY id")->fetchAll();
                                 foreach ($shifts as $shift): ?>
                                     <div class="form-group" style="display:flex;align-items:center;gap:1rem;">
                                         <label style="min-width:80px;">Shift #<?php echo $shift['id']; ?></label>
@@ -1395,7 +1399,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 <div class="table-row" style="font-weight: 600; color: #FFD700;">
                     <div>Employee #</div>
                     <div>Name</div>
-                    <div>Department</div>
+                    <div>Shift</div>
                     <div>Status</div>
                     <div>Actions</div>
                 </div>
@@ -1405,12 +1409,11 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 const statusClass = emp.is_active == 1 ? 'success' : 'danger';
                 const statusText = emp.is_active == 1 ? 'Active' : 'Inactive';
                 const statusIcon = emp.is_active == 1 ? 'check-circle' : 'times-circle';
-                
                 html += `
                     <div class="table-row">
                         <div>${emp.emp_number}</div>
                         <div>${emp.full_name}</div>
-                        <div>${emp.department || 'N/A'}</div>
+                        <div>${emp.shift_name || 'N/A'}</div>
                         <div>
                             <span class="status-badge status-${statusClass}">
                                 <i class="fas fa-${statusIcon}"></i> ${statusText}
@@ -1435,16 +1438,16 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         function addNewEmployee() {
             const empNumber = document.getElementById('new_emp_number').value.trim();
             const fullName = document.getElementById('new_full_name').value.trim();
-            const department = document.getElementById('new_department').value.trim();
-            if (!empNumber || !fullName || !department) {
+            const shiftId = document.getElementById('new_shift_id').value;
+            if (!empNumber || !fullName || !shiftId) {
                 showToast('Please fill in all fields', 'error');
                 return;
             }
             
-            fetch('admin-api.php', {
+            fetch('admin.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=add_employee&emp_number=${encodeURIComponent(empNumber)}&full_name=${encodeURIComponent(fullName)}&department=${encodeURIComponent(department)}`
+                body: `action=add_employee&emp_number=${encodeURIComponent(empNumber)}&full_name=${encodeURIComponent(fullName)}&shift_id=${encodeURIComponent(shiftId)}`
             })
             .then(response => response.json())
             .then(data => {

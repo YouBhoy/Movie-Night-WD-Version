@@ -133,10 +133,8 @@ try {
                 echo json_encode(['success' => true, 'employees' => []]);
                 exit;
             }
-            
-            $stmt = $pdo->query("SELECT id, emp_number, full_name, department, is_active FROM employees ORDER BY full_name");
+            $stmt = $pdo->query("SELECT e.id, e.emp_number, e.full_name, s.shift_name, e.is_active FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.full_name");
             $employees = $stmt->fetchAll();
-            
             echo json_encode(['success' => true, 'employees' => $employees]);
             break;
             
@@ -155,9 +153,9 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Employee number already exists']);
                 exit;
             }
-            // Insert new employee (department left blank for legacy)
-            $stmt = $pdo->prepare("INSERT INTO employees (emp_number, full_name, department, shift_id, is_active) VALUES (?, ?, ?, ?, 1)");
-            $stmt->execute([$emp_number, $full_name, '', $shift_id]);
+            // Insert new employee
+            $stmt = $pdo->prepare("INSERT INTO employees (emp_number, full_name, shift_id, is_active) VALUES (?, ?, ?, 1)");
+            $stmt->execute([$emp_number, $full_name, $shift_id]);
             echo json_encode(['success' => true, 'message' => 'Employee added successfully']);
             exit;
             
