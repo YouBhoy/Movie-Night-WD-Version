@@ -205,6 +205,52 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 $updateStmt->execute([$emp_number]);
                 echo json_encode(['success' => true, 'message' => 'Employee activated']);
                 exit;
+            case 'update_employee':
+                $id = (int)($_POST['id'] ?? 0);
+                $emp_number = trim($_POST['emp_number'] ?? '');
+                $full_name = trim($_POST['full_name'] ?? '');
+                $shift_id = (int)($_POST['shift_id'] ?? 0);
+                if ($id <= 0 || !$emp_number || !$full_name || $shift_id <= 0) {
+                    echo json_encode(['success' => false, 'message' => 'All fields are required']);
+                    exit;
+                }
+                // Check for unique employee number (exclude current employee)
+                $checkStmt = $pdo->prepare("SELECT id FROM employees WHERE emp_number = ? AND id != ?");
+                $checkStmt->execute([$emp_number, $id]);
+                if ($checkStmt->fetch()) {
+                    echo json_encode(['success' => false, 'message' => 'Employee number already exists']);
+                    exit;
+                }
+                // Get current employee info
+                $empStmt = $pdo->prepare("SELECT emp_number, shift_id FROM employees WHERE id = ?");
+                $empStmt->execute([$id]);
+                $currentEmp = $empStmt->fetch();
+                $registrationCancelled = false;
+                if ($currentEmp) {
+                    $old_emp_number = $currentEmp['emp_number'];
+                    $old_shift_id = $currentEmp['shift_id'];
+                    // Check for active registration
+                    $regStmt = $pdo->prepare("SELECT id FROM registrations WHERE emp_number = ? AND status = 'active' LIMIT 1");
+                    $regStmt->execute([$old_emp_number]);
+                    $reg = $regStmt->fetch();
+                    if ($reg) {
+                        $reg_id = $reg['id'];
+                        // If shift is changing or emp_number is changing, cancel registration and free seats
+                        if ($shift_id != $old_shift_id || $emp_number !== $old_emp_number) {
+                            $pdo->query("SET @reg_id = " . intval($reg_id));
+                            $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                            $registrationCancelled = true;
+                        }
+                    }
+                }
+                $stmt = $pdo->prepare("UPDATE employees SET emp_number = ?, full_name = ?, shift_id = ? WHERE id = ?");
+                $stmt->execute([$emp_number, $full_name, $shift_id, $id]);
+                $msg = 'Employee updated';
+                if ($registrationCancelled) {
+                    $msg .= '. Registration cancelled and seat(s) freed.';
+                }
+                echo json_encode(['success' => true, 'message' => $msg, 'registration_cancelled' => $registrationCancelled]);
+                exit;
         }
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
@@ -1177,6 +1223,38 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
     <!-- Toast Container -->
     <div id="toastContainer"></div>
     
+    <!-- Edit Employee Modal -->
+    <div id="editEmployeeModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+        <div style="background:#1a1a2e;padding:2rem;border-radius:12px;min-width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.3);position:relative;">
+            <h3 style="color:#FFD700;margin-bottom:1rem;">Edit Employee</h3>
+            <form id="editEmployeeForm">
+                <div class="form-group">
+                    <label for="edit_emp_number">Employee Number</label>
+                    <input type="text" id="edit_emp_number" name="emp_number" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_full_name">Full Name</label>
+                    <input type="text" id="edit_full_name" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_shift_id">Shift</label>
+                    <select id="edit_shift_id" name="shift_id" required>
+                        <option value="">Select shift</option>
+                        <?php foreach ($shifts as $shift): ?>
+                            <option value="<?php echo $shift['id']; ?>"><?php echo htmlspecialchars($shift['shift_name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <input type="hidden" id="edit_employee_id" name="id">
+                <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditEmployeeModal()">Cancel</button>
+                </div>
+            </form>
+            <button onclick="closeEditEmployeeModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#FFD700;font-size:1.5rem;cursor:pointer;">&times;</button>
+        </div>
+    </div>
+    
     <script>
         // Global variables
         let currentPage = 1;
@@ -1187,6 +1265,8 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         let allShifts = [];
         let allEmployees = [];
         let showActiveEmployees = true;
+        let editingEmployee = null;
+
         // On page load, set up hall and shift selectors
         document.addEventListener('DOMContentLoaded', function() {
             const hallSelector = document.getElementById('hallSelector');
@@ -1604,6 +1684,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         <div>${emp.full_name}</div>
                         <div>${emp.shift_name || 'N/A'}</div>
                         <div>
+                            <button class="btn btn-secondary btn-sm" onclick="openEditEmployeeModal(${emp.id})"><i class="fas fa-edit"></i> Edit</button>
                             ${emp.is_active == 1
                                 ? `<button class="btn btn-warning btn-sm" onclick="deactivateEmployee('${emp.emp_number}')"><i class="fas fa-ban"></i> Deactivate</button>`
                                 : `<button class="btn btn-success btn-sm" onclick="activateEmployee('${emp.emp_number}')"><i class="fas fa-check"></i> Activate</button>`}
@@ -1689,6 +1770,77 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             })
             .catch(() => showToast('Error activating employee', 'error'));
         }
+
+        function openEditEmployeeModal(empId) {
+            const emp = allEmployees.find(e => e.id == empId);
+            if (!emp) return;
+            editingEmployee = emp;
+            document.getElementById('edit_employee_id').value = emp.id;
+            document.getElementById('edit_emp_number').value = emp.emp_number;
+            document.getElementById('edit_full_name').value = emp.full_name;
+            document.getElementById('edit_shift_id').value = emp.shift_id || '';
+            document.getElementById('editEmployeeModal').style.display = 'flex';
+        }
+
+        function closeEditEmployeeModal() {
+            document.getElementById('editEmployeeModal').style.display = 'none';
+            editingEmployee = null;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('editEmployeeForm');
+            if (form) {
+                form.onsubmit = function(e) {
+                    e.preventDefault();
+                    const id = document.getElementById('edit_employee_id').value;
+                    const emp_number = document.getElementById('edit_emp_number').value.trim();
+                    const full_name = document.getElementById('edit_full_name').value.trim();
+                    const shift_id = document.getElementById('edit_shift_id').value;
+                    if (!emp_number || !full_name || !shift_id) {
+                        showToast('All fields are required', 'error');
+                        return;
+                    }
+                    // Check if shift or emp_number is changing and employee has active registration
+                    const emp = allEmployees.find(e => e.id == id);
+                    let needsConfirm = false;
+                    let confirmMsg = '';
+                    if (emp && emp.is_active == 1) {
+                        if (emp.shift_id != shift_id) {
+                            needsConfirm = true;
+                            confirmMsg = 'This employee has an active registration. Changing their shift will cancel their current registration and free their seat(s). Continue?';
+                        } else if (emp.emp_number !== emp_number) {
+                            needsConfirm = true;
+                            confirmMsg = 'This employee has an active registration. Changing their employee number will cancel their current registration and free their seat(s). Continue?';
+                        }
+                    }
+                    function doUpdate() {
+                        fetch('admin.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: `action=update_employee&id=${encodeURIComponent(id)}&emp_number=${encodeURIComponent(emp_number)}&full_name=${encodeURIComponent(full_name)}&shift_id=${encodeURIComponent(shift_id)}`
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast(data.message, 'success');
+                                closeEditEmployeeModal();
+                                loadEmployees();
+                            } else {
+                                showToast('Error: ' + data.message, 'error');
+                            }
+                        })
+                        .catch(() => showToast('Error updating employee', 'error'));
+                    }
+                    if (needsConfirm) {
+                        if (confirm(confirmMsg)) {
+                            doUpdate();
+                        }
+                    } else {
+                        doUpdate();
+                    }
+                };
+            }
+        });
     </script>
 </body>
 </html>

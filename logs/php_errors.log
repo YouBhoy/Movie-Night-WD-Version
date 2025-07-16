@@ -2302,3 +2302,57 @@
 [16-Jul-2025 13:20:24 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
 [16-Jul-2025 13:20:25 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
 [16-Jul-2025 13:20:25 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 13:36:28 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:36:28 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 13:42:23 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:42:24 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:42:25 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:42:26 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:42:26 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 13:42:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:42:28 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:43:34 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 13:43:34 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:35:55 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 17:35:55 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:36:11 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 17:36:11 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:36:26 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 346
+[16-Jul-2025 17:41:00 Asia/Singapore] Registration Error: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'WD005' for key 'unique_employee'
+[16-Jul-2025 17:41:00 Asia/Singapore] API Error: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'WD005' for key 'unique_employee'
+[16-Jul-2025 17:41:49 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 17:41:50 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:42:02 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 346
+[16-Jul-2025 17:42:19 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 17:42:19 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:42:24 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 346
+[16-Jul-2025 17:42:39 Asia/Singapore] Registration Error: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'TST3' for key 'unique_employee'
+[16-Jul-2025 17:42:39 Asia/Singapore] API Error: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'TST3' for key 'unique_employee'
+[16-Jul-2025 17:47:10 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 346
+[16-Jul-2025 17:47:10 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 346
+[16-Jul-2025 17:47:12 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 346
+[16-Jul-2025 17:47:19 Asia/Singapore] Registration Error: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'TST3' for key 'unique_employee'
+[16-Jul-2025 17:47:19 Asia/Singapore] API Error: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'TST3' for key 'unique_employee'
+[16-Jul-2025 17:56:14 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 352
+[16-Jul-2025 17:56:41 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 17:56:41 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:56:46 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 352
+[16-Jul-2025 17:56:46 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 352
+[16-Jul-2025 17:56:46 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 352
+[16-Jul-2025 17:57:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:57:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 17:57:21 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 18:03:06 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 18:03:06 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 18:03:16 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 352
+[16-Jul-2025 18:03:16 Asia/Singapore] Seat loading error: Invalid hall or shift ID provided
+[16-Jul-2025 18:03:16 Asia/Singapore] API Error: Failed to load seats: Invalid hall or shift ID provided
+[16-Jul-2025 18:03:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 18:03:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[16-Jul-2025 18:03:29 Asia/Singapore] [Warning] Undefined array key "department" in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\api.php on line 352
+[16-Jul-2025 18:03:46 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 18:03:48 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\export.php on line 5
+[16-Jul-2025 18:03:50 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\export.php on line 5
+[16-Jul-2025 18:03:51 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\export.php on line 5
+[16-Jul-2025 18:04:05 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[16-Jul-2025 18:04:23 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5

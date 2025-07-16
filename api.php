@@ -203,6 +203,12 @@ function handleRegistration($pdo) {
         if (isEmployeeRegistered($empNumber)) {
             throw new Exception('This employee number is already registered for this event');
         }
+        // Extra check for duplicate active registration (in case isEmployeeRegistered is not used everywhere)
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM registrations WHERE emp_number = ? AND status = 'active'");
+        $stmt->execute([$empNumber]);
+        if ($stmt->fetchColumn() > 0) {
+            throw new Exception('This employee number is already registered for this event');
+        }
         
         // Verify hall and shift combination
         $hallShiftStmt = $pdo->prepare("
