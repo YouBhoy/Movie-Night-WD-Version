@@ -174,6 +174,37 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                     echo json_encode(['success' => false, 'message' => 'Invalid hall ID or name']);
                 }
                 exit;
+            case 'deactivate_employee':
+                $emp_number = $_POST['emp_number'] ?? '';
+                if (empty($emp_number)) {
+                    echo json_encode(['success' => false, 'message' => 'Employee number required']);
+                    exit;
+                }
+                // Find active registration for this employee
+                $stmt = $pdo->prepare("SELECT id FROM registrations WHERE emp_number = ? AND status = 'active' LIMIT 1");
+                $stmt->execute([$emp_number]);
+                $reg = $stmt->fetch();
+                if ($reg) {
+                    // Free seats and cancel registration
+                    $reg_id = $reg['id'];
+                    $pdo->query("SET @reg_id = " . intval($reg_id));
+                    $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                }
+                // Deactivate employee
+                $updateStmt = $pdo->prepare("UPDATE employees SET is_active = 0 WHERE emp_number = ?");
+                $updateStmt->execute([$emp_number]);
+                echo json_encode(['success' => true, 'message' => 'Employee deactivated and seat freed']);
+                exit;
+            case 'activate_employee':
+                $emp_number = $_POST['emp_number'] ?? '';
+                if (empty($emp_number)) {
+                    echo json_encode(['success' => false, 'message' => 'Employee number required']);
+                    exit;
+                }
+                $updateStmt = $pdo->prepare("UPDATE employees SET is_active = 1 WHERE emp_number = ?");
+                $updateStmt->execute([$emp_number]);
+                echo json_encode(['success' => true, 'message' => 'Employee activated']);
+                exit;
         }
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
@@ -210,8 +241,8 @@ try {
     
     // Get halls data for JavaScript
     $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
-    // Fetch all shifts for the employee form dropdown
-    $shifts = $pdo->query("SELECT id, shift_name, hall_id FROM shifts ORDER BY id")->fetchAll();
+    // Fetch all active shifts for the employee form dropdown
+    $shifts = $pdo->query("SELECT id, shift_name, hall_id FROM shifts WHERE is_active = 1 ORDER BY id")->fetchAll();
 } catch (Exception $e) {
     $db_error = 'Database connection failed: ' . $e->getMessage();
     $halls = [];
@@ -1004,8 +1035,9 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 <?php elseif ($current_tab === 'employees'): ?>
                     <!-- Employees Tab -->
                     <div class="form-section">
-                        <h2><i class="fas fa-id-card"></i> Employee Management</h2>
-                        
+                        <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                            <h2 style="margin-bottom: 0;"><i class="fas fa-id-card"></i> Employee Management</h2>
+                        </div>
                         <!-- Add Employee Form -->
                         <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(255, 255, 255, 0.1);">
                             <h3 style="margin-bottom: 1rem; color: #FFD700;">Add New Employee</h3>
@@ -1033,18 +1065,20 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                             </button>
                         </div>
                         
-                        <div class="actions">
-                            <button class="btn btn-secondary" onclick="loadEmployees()">
-                                <i class="fas fa-refresh"></i> Refresh List
-                            </button>
+                        <!-- Employees List Area -->
+                        <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem;">
+                            <div class="tab-nav" id="employeeTabNav" style="display: flex; gap: 0.5rem;">
+                                <button class="tab-btn active" id="tabActiveEmployees">Active Employees</button>
+                                <button class="tab-btn" id="tabDeactivatedEmployees">Deactivated Employees</button>
+                            </div>
+                            <input type="text" id="employeeSearchInput" class="search-input" placeholder="Search by Employee Number..." style="max-width: 300px; margin-left: 1rem;">
                         </div>
-                        
-                        <div class="data-table">
+                        <div class="data-table" style="margin-top:2rem;">
                             <div class="table-header">
-                                <i class="fas fa-users"></i> Eligible Employees
+                                <i class="fas fa-users"></i> Employees
                             </div>
                             <div class="table-content" id="employeesTable">
-                                <!-- Employee list will be loaded via AJAX -->
+                                <!-- Employee list will be loaded here -->
                             </div>
                         </div>
                     </div>
@@ -1151,6 +1185,8 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         let currentShiftId = '';
         let allHalls = <?php echo json_encode($halls); ?>;
         let allShifts = [];
+        let allEmployees = [];
+        let showActiveEmployees = true;
         // On page load, set up hall and shift selectors
         document.addEventListener('DOMContentLoaded', function() {
             const hallSelector = document.getElementById('hallSelector');
@@ -1174,16 +1210,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 currentShiftId = this.value;
                 loadSeatLayout();
             });
-            
-            // Load initial data based on current tab
-            const currentTab = '<?php echo $current_tab; ?>';
-            if (currentTab === 'seats') {
-                loadSeatLayout();
-            } else if (currentTab === 'employees') {
-                loadEmployees();
-            } else if (currentTab === 'settings') {
-                loadEventSettings();
-            }
         });
         
         // Save individual event setting
@@ -1365,75 +1391,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             }
         }
         
-        // Load employees
-        function loadEmployees() {
-            const table = document.getElementById('employeesTable');
-            if (!table) return;
-            
-            table.innerHTML = '<div style="padding: 2rem; text-align: center;"><div class="loading"></div> Loading...</div>';
-            
-            fetch('admin-api.php?action=get_employees')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayEmployees(data.employees);
-                    } else {
-                        showToast('Error loading employees: ' + data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    showToast('Error loading employees', 'error');
-                });
-        }
-        
-        // Display employees in table
-        function displayEmployees(employees) {
-            const table = document.getElementById('employeesTable');
-            
-            if (employees.length === 0) {
-                table.innerHTML = '<div style="padding: 2rem; text-align: center; color: #94a3b8;"><i class="fas fa-users"></i> No employees found.</div>';
-                return;
-            }
-            
-            let html = `
-                <div class="table-row" style="font-weight: 600; color: #FFD700;">
-                    <div>Employee #</div>
-                    <div>Name</div>
-                    <div>Shift</div>
-                    <div>Status</div>
-                    <div>Actions</div>
-                </div>
-            `;
-            
-            employees.forEach(emp => {
-                const statusClass = emp.is_active == 1 ? 'success' : 'danger';
-                const statusText = emp.is_active == 1 ? 'Active' : 'Inactive';
-                const statusIcon = emp.is_active == 1 ? 'check-circle' : 'times-circle';
-                html += `
-                    <div class="table-row">
-                        <div>${emp.emp_number}</div>
-                        <div>${emp.full_name}</div>
-                        <div>${emp.shift_name || 'N/A'}</div>
-                        <div>
-                            <span class="status-badge status-${statusClass}">
-                                <i class="fas fa-${statusIcon}"></i> ${statusText}
-                            </span>
-                        </div>
-                        <div>
-                            <button class="btn btn-${emp.is_active == 1 ? 'warning' : 'success'} btn-sm" onclick="toggleEmployeeStatus(${emp.id}, ${emp.is_active})">
-                                <i class="fas fa-${emp.is_active == 1 ? 'ban' : 'check'}"></i> ${emp.is_active == 1 ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${emp.id})">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            table.innerHTML = html;
-        }
-        
         // Add new employee
         function addNewEmployee() {
             const empNumber = document.getElementById('new_emp_number').value.trim();
@@ -1589,6 +1546,148 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 }
             })
             .catch(() => showToast('Error updating hall name', 'error'));
+        }
+
+        // Load and display all employees
+        function loadEmployees() {
+            const table = document.getElementById('employeesTable');
+            if (!table) return;
+            table.innerHTML = '<div style="padding: 2rem; text-align: center;"><div class="loading"></div> Loading...</div>';
+            fetch('admin-api.php?action=get_employees')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        allEmployees = data.employees;
+                        renderEmployeeTable(getFilteredEmployees());
+                    } else {
+                        table.innerHTML = '<div style="padding:2rem;text-align:center;color:#ef4444;">Error loading employees: ' + data.message + '</div>';
+                    }
+                })
+                .catch(() => {
+                    table.innerHTML = '<div style="padding:2rem;text-align:center;color:#ef4444;">Error loading employees</div>';
+                });
+        }
+
+        // Get filtered employees based on tab and search
+        function getFilteredEmployees() {
+            const searchInput = document.getElementById('employeeSearchInput');
+            let filtered = allEmployees.filter(emp => showActiveEmployees ? emp.is_active == 1 : emp.is_active == 0);
+            if (searchInput && searchInput.value.trim()) {
+                const searchValue = searchInput.value.trim().toLowerCase();
+                filtered = filtered.filter(emp =>
+                    emp.emp_number && emp.emp_number.toLowerCase().includes(searchValue)
+                );
+            }
+            return filtered;
+        }
+
+        // Render employee table
+        function renderEmployeeTable(employees) {
+            const table = document.getElementById('employeesTable');
+            if (!table) return;
+            if (!employees || employees.length === 0) {
+                table.innerHTML = '<div style="padding:2rem;text-align:center;color:#94a3b8;"><i class="fas fa-users"></i> No employees found.</div>';
+                return;
+            }
+            let html = `
+                <div class="table-row" style="font-weight: 600; color: #FFD700;">
+                    <div>Employee #</div>
+                    <div>Name</div>
+                    <div>Shift</div>
+                    <div>Actions</div>
+                </div>
+            `;
+            employees.forEach(emp => {
+                html += `
+                    <div class="table-row">
+                        <div>${emp.emp_number}</div>
+                        <div>${emp.full_name}</div>
+                        <div>${emp.shift_name || 'N/A'}</div>
+                        <div>
+                            ${emp.is_active == 1
+                                ? `<button class="btn btn-warning btn-sm" onclick="deactivateEmployee('${emp.emp_number}')"><i class="fas fa-ban"></i> Deactivate</button>`
+                                : `<button class="btn btn-success btn-sm" onclick="activateEmployee('${emp.emp_number}')"><i class="fas fa-check"></i> Activate</button>`}
+                        </div>
+                    </div>
+                `;
+            });
+            table.innerHTML = html;
+        }
+
+        // Search/filter employees by employee number
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('employeeSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    renderEmployeeTable(getFilteredEmployees());
+                });
+            }
+
+            // Tab switching logic for employees
+            const tabActive = document.getElementById('tabActiveEmployees');
+            const tabDeactivated = document.getElementById('tabDeactivatedEmployees');
+            if (tabActive && tabDeactivated) {
+                tabActive.addEventListener('click', function() {
+                    showActiveEmployees = true;
+                    tabActive.classList.add('active');
+                    tabDeactivated.classList.remove('active');
+                    renderEmployeeTable(getFilteredEmployees());
+                });
+                tabDeactivated.addEventListener('click', function() {
+                    showActiveEmployees = false;
+                    tabDeactivated.classList.add('active');
+                    tabActive.classList.remove('active');
+                    renderEmployeeTable(getFilteredEmployees());
+                });
+            }
+        });
+
+        // Load employees on page load if on employees tab
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentTab = '<?php echo $current_tab; ?>';
+            if (currentTab === 'employees') {
+                loadEmployees();
+            }
+        });
+
+        // Deactivate employee function
+        function deactivateEmployee(empNumber) {
+            if (!confirm('Are you sure you want to deactivate this employee and free their seat?')) return;
+            fetch('admin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=deactivate_employee&emp_number=${encodeURIComponent(empNumber)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Employee deactivated and seat freed', 'success');
+                    loadEmployees();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(() => showToast('Error deactivating employee', 'error'));
+        }
+
+        // Activate employee function
+        function activateEmployee(empNumber) {
+            if (!confirm('Are you sure you want to activate this employee?')) return;
+            fetch('admin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=activate_employee&emp_number=${encodeURIComponent(empNumber)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Employee activated', 'success');
+                    loadEmployees();
+                } else {
+                    showToast('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(() => showToast('Error activating employee', 'error'));
         }
     </script>
 </body>
