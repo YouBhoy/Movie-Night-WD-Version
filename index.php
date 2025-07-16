@@ -66,16 +66,131 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
     <link rel="stylesheet" href="styles.css">
     <style>
         :root {
-            --primary-color: <?php echo sanitizeInput($primaryColor); ?>;
-            --secondary-color: <?php echo sanitizeInput($secondaryColor); ?>;
-            --primary-color-rgb: <?php 
-                $primaryRGB = hexToRgb($primaryColor);
-                echo $primaryRGB ? $primaryRGB : '255, 215, 0';
-            ?>;
-            --secondary-color-rgb: <?php 
-                $secondaryRGB = hexToRgb($secondaryColor);
-                echo $secondaryRGB ? $secondaryRGB : '46, 139, 255';
-            ?>;
+            --background: #121212;
+            --card: #1E1E1E;
+            --primary-color: #E50914;
+            --secondary-color: #FFD700;
+            --text-primary: #FFFFFF;
+            --text-muted: #B0B0B0;
+            --border: #333333;
+            --hover: #292929;
+            --success: #00C853;
+            --danger: #D32F2F;
+        }
+        body, .dark-theme {
+            background: var(--background);
+            color: var(--text-primary);
+        }
+        .header {
+            background: var(--card);
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            min-height: 120px;
+            box-shadow: none;
+            padding: 2rem 0 1rem 0;
+        }
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100px;
+            gap: 2rem;
+        }
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-right: 2rem;
+        }
+        .nav {
+            display: flex;
+            gap: 2rem;
+        }
+        .nav-link {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+            position: relative;
+        }
+        .nav-link:hover, .nav-link:focus {
+            color: var(--secondary-color);
+        }
+        .nav-link::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--secondary-color);
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .hero-section {
+            background: var(--background);
+            color: var(--text-primary);
+            padding: 6rem 0 3rem 0;
+            text-align: center;
+        }
+        .hero-title {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--secondary-color);
+        }
+        .movie-details {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .detail-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .detail-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+        .hero-description {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .cta-button {
+            display: inline-block;
+            background: var(--primary-color);
+            color: #fff;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.125rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.3);
+        }
+        .cta-button:hover {
+            background: var(--secondary-color);
+            color: #000;
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(229, 9, 20, 0.4);
+        }
+        .cta-button.disabled {
+            background: #64748b;
+            color: #ffffff;
+            cursor: not-allowed;
+            box-shadow: none;
         }
         
         /* Enhanced Seat Selection Styling */

@@ -309,16 +309,16 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: <?php echo $settings['primary_color'] ?? '#FFD700'; ?>;
-            --secondary-color: <?php echo $settings['secondary_color'] ?? '#2E8BFF'; ?>;
-            --primary-color-rgb: <?php 
-                $primaryRGB = hexToRgb($settings['primary_color'] ?? '#FFD700');
-                echo $primaryRGB ? $primaryRGB : '255, 215, 0';
-            ?>;
-            --secondary-color-rgb: <?php 
-                $secondaryRGB = hexToRgb($settings['secondary_color'] ?? '#2E8BFF');
-                echo $secondaryRGB ? $secondaryRGB : '46, 139, 255';
-            ?>;
+            --background: #121212;
+            --card: #1E1E1E;
+            --primary-color: #E50914;
+            --secondary-color: #FFD700;
+            --text-primary: #FFFFFF;
+            --text-muted: #B0B0B0;
+            --border: #333333;
+            --hover: #292929;
+            --success: #00C853;
+            --danger: #D32F2F;
         }
         
         * {
@@ -329,21 +329,24 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-            color: #ffffff;
+            background: var(--background);
+            color: var(--text-primary);
             min-height: 100vh;
         }
         
         .container {
             max-width: 1400px;
             margin: 0 auto;
-            padding: 1rem;
+            padding: 2rem 1rem;
         }
         
         .header {
             text-align: center;
             margin-bottom: 2rem;
             position: relative;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 2rem 0 1rem 0;
         }
         
         .header h1 {
@@ -351,47 +354,46 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             font-weight: 700;
             color: var(--primary-color);
             margin-bottom: 0.5rem;
+            letter-spacing: 2px;
         }
         
         .header p {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 1.1rem;
         }
         
-        .logout-link {
+        .logout-link, .back-to-registration-link {
             position: absolute;
             top: 0;
-            right: 0;
-            color: #94a3b8;
+            color: var(--text-muted);
             text-decoration: none;
             font-size: 0.9rem;
             padding: 0.5rem 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border);
             border-radius: 8px;
             transition: all 0.3s ease;
         }
         
-        .logout-link:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
-        }
+        .logout-link { right: 0; }
         
-        .back-to-registration-link {
+        .back-to-registration-link { left: 0; }
+        
+        .back-to-dashboard-link {
             position: absolute;
             top: 0;
-            left: 0;
-            color: #94a3b8;
+            left: 180px;
+            color: var(--text-muted);
             text-decoration: none;
             font-size: 0.9rem;
             padding: 0.5rem 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border);
             border-radius: 8px;
             transition: all 0.3s ease;
         }
         
-        .back-to-registration-link:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
+        .back-to-dashboard-link:hover {
+            color: var(--secondary-color);
+            background: var(--hover);
         }
         
         /* Login Form */
@@ -417,28 +419,28 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             gap: 0.5rem;
         }
         
-        .form-group label {
+        .form-group label, .form-label {
+            color: var(--text-primary);
             font-weight: 500;
-            color: #ffffff;
         }
         
-        .form-group input {
+        .form-group input, .form-group select {
             padding: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
+            background: var(--background);
+            color: var(--text-primary);
             font-size: 1rem;
         }
         
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);
+            box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.1);
         }
         
         .btn {
-            padding: 0.875rem;
+            padding: 0.7rem 1.2rem;
             border: none;
             border-radius: 8px;
             font-weight: 600;
@@ -452,42 +454,43 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         
         .btn-primary {
             background: var(--primary-color);
-            color: #000;
+            color: #fff;
         }
         
         .btn-primary:hover {
             background: var(--secondary-color);
-            transform: translateY(-2px);
+            color: #000;
         }
         
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: var(--hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
         }
         
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--card);
         }
         
         .btn-danger {
-            background: #ef4444;
-            color: #ffffff;
+            background: var(--danger);
+            color: #fff;
         }
         
         .btn-danger:hover {
-            background: #dc2626;
+            background: #b71c1c;
         }
         
         .btn-warning {
-            background: #f59e0b;
-            color: #ffffff;
+            background: var(--secondary-color);
+            color: #000;
         }
         
         .btn-warning:hover {
-            background: #d97706;
+            background: #bfa100;
         }
         
+        /* Status Badges */
         .status-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 12px;
@@ -497,20 +500,20 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
         
         .status-success {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(0, 200, 83, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(0, 200, 83, 0.3);
         }
         
         .status-danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: rgba(211, 47, 47, 0.2);
+            color: var(--danger);
+            border: 1px solid rgba(211, 47, 47, 0.3);
         }
         
         .error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: rgba(211, 47, 47, 0.1);
+            border: 1px solid rgba(211, 47, 47, 0.3);
             color: #fca5a5;
             padding: 1rem;
             border-radius: 8px;
@@ -531,19 +534,19 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             padding: 0.75rem 1.5rem;
             border-radius: 8px;
             text-decoration: none;
-            color: #94a3b8;
+            color: var(--text-muted);
             font-weight: 500;
             transition: all 0.3s ease;
             white-space: nowrap;
         }
         
         .nav-tab:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
+            color: var(--secondary-color);
+            background: var(--hover);
         }
         
         .nav-tab.active {
-            background: #FFD700;
+            background: var(--secondary-color);
             color: #000;
         }
         
@@ -561,15 +564,16 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
         
         .stat-card {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--card);
             border-radius: 12px;
             padding: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
             text-align: center;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.2);
         }
         
         .stat-card h3 {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -579,7 +583,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         .stat-card .number {
             font-size: 2rem;
             font-weight: 700;
-            color: #FFD700;
+            color: var(--secondary-color);
         }
         
         .actions {
@@ -591,39 +595,23 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         
         /* Tables */
         .data-table {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--card);
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.2);
         }
         
         .table-header {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--hover);
             padding: 1rem;
             font-weight: 600;
-            color: #FFD700;
+            color: var(--secondary-color);
+            border-radius: 8px 8px 0 0;
         }
         
         .table-content {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .table-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
-            gap: 1rem;
-            padding: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            align-items: center;
-        }
-        
-        .table-row:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        .table-row:last-child {
-            border-bottom: none;
+            color: var(--text-primary);
         }
         
         /* Search and Filters */
@@ -638,17 +626,17 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         .search-input {
             width: 100%;
             padding: 0.75rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
+            background: var(--background);
+            color: var(--text-primary);
             font-size: 1rem;
         }
         
         .search-input:focus {
             outline: none;
-            border-color: #FFD700;
-            box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(239, 215, 74, 0.1);
         }
         
         /* Seat Layout */
@@ -680,37 +668,38 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
         
         .seat.available {
-            background: #10b981;
-            color: #ffffff;
+            background: var(--success);
+            color: #fff;
         }
         
         .seat.occupied {
-            background: #ef4444;
-            color: #ffffff;
+            background: var(--danger);
+            color: #fff;
         }
         
         .seat.blocked {
-            background: #6b7280;
-            color: #ffffff;
+            background: var(--text-muted);
+            color: #fff;
         }
         
         .seat.reserved {
-            background: #f59e0b;
-            color: #ffffff;
+            background: var(--secondary-color);
+            color: #000;
         }
         
         .seat:hover {
             transform: scale(1.1);
-            border-color: #FFD700;
+            border-color: var(--secondary-color);
         }
         
         /* Forms */
         .form-section {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--card);
             border-radius: 12px;
             padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
             margin-bottom: 2rem;
+            box-shadow: 0 2px 16px 0 rgba(0,0,0,0.2);
         }
         
         .form-grid {
@@ -726,11 +715,13 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             right: 2rem;
             padding: 1rem 1.5rem;
             border-radius: 8px;
-            color: #ffffff;
+            color: var(--text-primary);
             font-weight: 500;
             z-index: 1000;
             transform: translateX(100%);
             transition: transform 0.3s ease;
+            background: var(--hover);
+            border: 1px solid var(--border);
         }
         
         .toast.show {
@@ -738,11 +729,11 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
         
         .toast.success {
-            background: #10b981;
+            background: var(--success);
         }
         
         .toast.error {
-            background: #ef4444;
+            background: var(--danger);
         }
         
         /* Loading Spinner */
@@ -752,7 +743,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             height: 20px;
             border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top-color: #FFD700;
+            border-top-color: var(--secondary-color);
             animation: spin 1s ease-in-out infinite;
         }
         
@@ -761,10 +752,9 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
         
         /* Responsive */
-        @media (max-width: 768px) {
-            .table-row {
-                grid-template-columns: 1fr;
-                gap: 0.5rem;
+        @media (max-width: 900px) {
+            .table-row, .data-table .table-row {
+                grid-template-columns: 1fr 1fr 1fr 1fr;
             }
             
             .table-row > div {
@@ -781,6 +771,17 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             
             .seat-grid {
                 grid-template-columns: repeat(5, 1fr);
+            }
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 0.5rem;
+            }
+            .header {
+                padding: 1rem 0 0.5rem 0;
+            }
+            .data-table, .form-section, .stat-card, .info-card {
+                padding: 1rem;
             }
         }
     </style>
@@ -913,59 +914,64 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                 <?php
                                 $registrations = [];
                                 if ($tableExists) {
-                                                                    try {
-                                    $stmt = $pdo->query("
-                                        SELECT 
-                                            r.id,
-                                            r.emp_number,
-                                            r.staff_name,
-                                            r.attendee_count,
-                                            r.selected_seats,
-                                            r.registration_date,
-                                            h.hall_name,
-                                            s.shift_name
-                                        FROM registrations r
-                                        JOIN cinema_halls h ON r.hall_id = h.id
-                                        JOIN shifts s ON r.shift_id = s.id
-                                        WHERE r.status = 'active' 
-                                        ORDER BY r.registration_date DESC 
-                                        LIMIT 10
-                                    ");
-                                    $registrations = $stmt->fetchAll();
-                                } catch (Exception $e) {
-                                    $registrations = [];
+                                    try {
+                                        $stmt = $pdo->query("
+                                            SELECT 
+                                                r.id,
+                                                r.emp_number,
+                                                r.staff_name,
+                                                r.attendee_count,
+                                                r.selected_seats,
+                                                r.registration_date,
+                                                h.hall_name,
+                                                s.shift_name
+                                            FROM registrations r
+                                            JOIN cinema_halls h ON r.hall_id = h.id
+                                            JOIN shifts s ON r.shift_id = s.id
+                                            WHERE r.status = 'active' 
+                                            ORDER BY r.registration_date DESC 
+                                            LIMIT 10
+                                        ");
+                                        $registrations = $stmt->fetchAll();
+                                    } catch (Exception $e) {
+                                        $registrations = [];
+                                    }
                                 }
-                                }
-                                
                                 if ($registrations): ?>
-                                    <div class="table-row" style="font-weight: 600; color: #FFD700;">
-                                        <div>Staff Name</div>
-                                        <div>Employee #</div>
-                                        <div>Cinema Hall</div>
-                                        <div>Shift</div>
-                                        <div>Attendees</div>
-                                        <div>Selected Seats</div>
-                                        <div>Registration Date</div>
-                                        <div>Actions</div>
-                                    </div>
-                                    <?php foreach ($registrations as $reg): ?>
-                                        <div class="table-row">
-                                            <div><?php echo htmlspecialchars($reg['staff_name']); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['emp_number']); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['hall_name']); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['shift_name']); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['attendee_count'] ?? 1); ?></div>
-                                            <div><?php echo htmlspecialchars($reg['selected_seats'] ?? 'N/A'); ?></div>
-                                            <div><?php echo date('M j, Y g:i A', strtotime($reg['registration_date'])); ?></div>
-                                            <div>
-                                                <button class="btn btn-danger btn-sm" onclick="deleteRegistration(<?php echo $reg['id']; ?>)">
-                                                    <i class="fas fa-trash"></i> Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
+                                    <table style="width:100%;border-collapse:collapse;">
+                                        <thead>
+                                            <tr style="font-weight:600;color:var(--secondary-color);background:var(--hover);">
+                                                <th style="padding:0.75rem 0.5rem;">Staff Name</th>
+                                                <th>Employee #</th>
+                                                <th>Cinema Hall</th>
+                                                <th>Shift</th>
+                                                <th>Attendees</th>
+                                                <th>Selected Seats</th>
+                                                <th>Registration Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        <?php foreach ($registrations as $reg): ?>
+                                            <tr style="border-bottom:1px solid var(--border);">
+                                                <td style="padding:0.75rem 0.5rem;"><?php echo htmlspecialchars($reg['staff_name']); ?></td>
+                                                <td><?php echo htmlspecialchars($reg['emp_number']); ?></td>
+                                                <td><?php echo htmlspecialchars($reg['hall_name']); ?></td>
+                                                <td><?php echo htmlspecialchars($reg['shift_name']); ?></td>
+                                                <td><?php echo htmlspecialchars($reg['attendee_count'] ?? 1); ?></td>
+                                                <td><?php echo htmlspecialchars($reg['selected_seats'] ?? 'N/A'); ?></td>
+                                                <td><?php echo date('M j, Y g:i A', strtotime($reg['registration_date'])); ?></td>
+                                                <td>
+                                                    <button class="btn btn-danger btn-sm" onclick="deleteRegistration(<?php echo $reg['id']; ?>)">
+                                                        <i class="fas fa-trash"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
                                 <?php else: ?>
-                                    <div style="padding: 2rem; text-align: center; color: #94a3b8;">
+                                    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
                                         <i class="fas fa-inbox"></i> No registrations found.
                                     </div>
                                 <?php endif; ?>
@@ -975,104 +981,77 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     
                 <?php elseif ($current_tab === 'registrations'): ?>
                     <!-- Registrations Tab (Registration Management section removed) -->
-                    <div style="padding: 2rem; text-align: center; color: #94a3b8;">
+                    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
                         <i class="fas fa-info-circle"></i> Registration Management has been removed.
                     </div>
                     
                 <?php elseif ($current_tab === 'seats'): ?>
-                    <div style="padding: 2rem; text-align: center; color: #94a3b8;">
+                    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
                         <i class="fas fa-info-circle"></i> Seat Layout Editor is currently disabled.
                     </div>
                 <?php elseif ($current_tab === 'settings'): ?>
                     <!-- Event Settings Tab -->
-                    <div class="form-section">
-                        <h2><i class="fas fa-cog"></i> Event Settings</h2>
-                        <p>Click the save button next to each setting to update it individually.</p>
-                        
-                        <div class="form-grid">
+                    <div class="form-section" style="background: var(--card); border-radius: 16px; box-shadow: 0 2px 16px 0 rgba(0,0,0,0.2); border: 1px solid var(--border);">
+                        <h2 style="color: var(--secondary-color); font-weight: 700; letter-spacing: 1px; margin-bottom: 1rem;"><i class="fas fa-cog"></i> Event Settings</h2>
+                        <p style="color: var(--text-muted);">Click the save button next to each setting to update it individually.</p>
+                        <div class="form-grid" style="gap: 2rem;">
                             <div class="form-group">
-                                <label for="movie_name">🎬 Movie Name</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="text" id="movie_name" name="movie_name" placeholder="Enter movie name">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('movie_name')">
+                                <label for="movie_name" style="color: var(--secondary-color); font-weight: 600;">🎬 Movie Name</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <input type="text" id="movie_name" name="movie_name" placeholder="Enter movie name" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
+                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('movie_name')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
                             </div>
-                            
                             <div class="form-group">
-                                <label for="movie_time">⏰ Movie Time</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="text" id="movie_time" name="movie_time" placeholder="e.g., 7:00 PM">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('movie_time')">
+                                <label for="movie_time" style="color: var(--secondary-color); font-weight: 600;">⏰ Movie Time</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <input type="text" id="movie_time" name="movie_time" placeholder="e.g., 7:00 PM" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
+                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('movie_time')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
                             </div>
-                            
                             <div class="form-group">
-                                <label for="venue_name">🏢 Venue / Cinema Hall Name</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="text" id="venue_name" name="venue_name" placeholder="Enter venue name">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('venue_name')">
+                                <label for="venue_name" style="color: var(--secondary-color); font-weight: 600;">🏢 Venue / Cinema Hall Name</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <input type="text" id="venue_name" name="venue_name" placeholder="Enter venue name" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
+                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('venue_name')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
                             </div>
-                            
                             <div class="form-group">
-                                <label for="max_attendees">👥 Max Attendees per Booking</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="number" id="max_attendees" name="max_attendees" min="1" max="10" value="3">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('max_attendees')">
+                                <label for="max_attendees" style="color: var(--secondary-color); font-weight: 600;">👥 Max Attendees per Booking</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <input type="number" id="max_attendees" name="max_attendees" min="1" max="10" value="3" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
+                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('max_attendees')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
                             </div>
-                            
                             <div class="form-group">
-                                <label for="default_seat_count">🪑 Default Seat Count</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="number" id="default_seat_count" name="default_seat_count" min="1" value="72">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('default_seat_count')">
+                                <label for="default_seat_count" style="color: var(--secondary-color); font-weight: 600;">🪑 Default Seat Count</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <input type="number" id="default_seat_count" name="default_seat_count" min="1" value="72" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
+                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('default_seat_count')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
                             </div>
-                            
                             <div class="form-group">
-                                <label for="primary_color">🎨 Primary Color</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="color" id="primary_color" name="primary_color" value="#FFD700">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('primary_color')">
-                                        <i class="fas fa-save"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="secondary_color">🎨 Secondary Color</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="color" id="secondary_color" name="secondary_color" value="#2E8BFF">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('secondary_color')">
-                                        <i class="fas fa-save"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="company_name">🏢 Company Name</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="text" id="company_name" name="company_name" placeholder="Enter company name" value="Western Digital">
-                                    <button type="button" class="btn btn-primary" onclick="saveSetting('company_name')">
+                                <label for="company_name" style="color: var(--secondary-color); font-weight: 600;">🏢 Company Name</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <input type="text" id="company_name" name="company_name" placeholder="Enter company name" value="Western Digital" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
+                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('company_name')">
                                         <i class="fas fa-save"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        
                         <div style="margin-top: 2rem;">
-                            <button type="button" class="btn btn-secondary" onclick="loadEventSettings()">
+                            <button type="button" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px;" onclick="loadEventSettings()">
                                 <i class="fas fa-refresh"></i> Load Current Settings
                             </button>
                         </div>
@@ -1086,7 +1065,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         </div>
                         <!-- Add Employee Form -->
                         <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(255, 255, 255, 0.1);">
-                            <h3 style="margin-bottom: 1rem; color: #FFD700;">Add New Employee</h3>
+                            <h3 style="margin-bottom: 1rem; color: var(--secondary-color);">Add New Employee</h3>
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="new_emp_number">Employee Number</label>
@@ -1124,7 +1103,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                 <i class="fas fa-users"></i> Employees
                             </div>
                             <div class="table-content" id="employeesTable">
-                                <!-- Employee list will be loaded here -->
+                                <!-- Employee list will be loaded here as a table -->
                             </div>
                         </div>
                     </div>
@@ -1154,7 +1133,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         <h2><i class="fas fa-tags"></i> Labels & Names</h2>
                         <p>Edit the names of shifts and cinema halls as they appear to users.</p>
                         <div class="form-grid" style="margin-bottom:2rem;">
-                            <h3 style="color:#FFD700;">Shifts</h3>
+                            <h3 style="color:var(--secondary-color);">Shifts</h3>
                             <div id="shiftNamesTable">
                                 <?php
                                 $shifts = $pdo->query("SELECT id, shift_name, hall_id FROM shifts ORDER BY id")->fetchAll();
@@ -1168,7 +1147,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                             </div>
                         </div>
                         <div class="form-grid">
-                            <h3 style="color:#FFD700;">Cinema Halls</h3>
+                            <h3 style="color:var(--secondary-color);">Cinema Halls</h3>
                             <div id="hallNamesTable">
                                 <?php
                                 $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
@@ -1212,7 +1191,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 </form>
                 
                 <div style="text-align: center; margin-top: 2rem;">
-                    <a href="index.php" style="color: #94a3b8; text-decoration: none;">
+                    <a href="index.php" style="color: var(--text-muted); text-decoration: none;">
                         <i class="fas fa-arrow-left"></i> Back to Registration
                     </a>
                 </div>
@@ -1226,7 +1205,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
     <!-- Edit Employee Modal -->
     <div id="editEmployeeModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
         <div style="background:#1a1a2e;padding:2rem;border-radius:12px;min-width:320px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.3);position:relative;">
-            <h3 style="color:#FFD700;margin-bottom:1rem;">Edit Employee</h3>
+            <h3 style="color:var(--secondary-color);margin-bottom:1rem;">Edit Employee</h3>
             <form id="editEmployeeForm">
                 <div class="form-group">
                     <label for="edit_emp_number">Employee Number</label>
@@ -1251,7 +1230,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     <button type="button" class="btn btn-secondary" onclick="closeEditEmployeeModal()">Cancel</button>
                 </div>
             </form>
-            <button onclick="closeEditEmployeeModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:#FFD700;font-size:1.5rem;cursor:pointer;">&times;</button>
+            <button onclick="closeEditEmployeeModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--secondary-color);font-size:1.5rem;cursor:pointer;">&times;</button>
         </div>
     </div>
     
@@ -1336,8 +1315,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         if (settings.venue_name) document.getElementById('venue_name').value = settings.venue_name;
                         if (settings.max_attendees) document.getElementById('max_attendees').value = settings.max_attendees;
                         if (settings.default_seat_count) document.getElementById('default_seat_count').value = settings.default_seat_count;
-                        if (settings.primary_color) document.getElementById('primary_color').value = settings.primary_color;
-                        if (settings.secondary_color) document.getElementById('secondary_color').value = settings.secondary_color;
                         if (settings.company_name) document.getElementById('company_name').value = settings.company_name;
                         showToast('Settings loaded successfully', 'success');
                     } else {
@@ -1638,7 +1615,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 .then(data => {
                     if (data.success) {
                         allEmployees = data.employees;
-                        renderEmployeeTable(getFilteredEmployees());
+                        renderEmployeesTable(getFilteredEmployees());
                     } else {
                         table.innerHTML = '<div style="padding:2rem;text-align:center;color:#ef4444;">Error loading employees: ' + data.message + '</div>';
                     }
@@ -1662,37 +1639,30 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
         }
 
         // Render employee table
-        function renderEmployeeTable(employees) {
-            const table = document.getElementById('employeesTable');
-            if (!table) return;
-            if (!employees || employees.length === 0) {
-                table.innerHTML = '<div style="padding:2rem;text-align:center;color:#94a3b8;"><i class="fas fa-users"></i> No employees found.</div>';
-                return;
-            }
-            let html = `
-                <div class="table-row" style="font-weight: 600; color: #FFD700;">
-                    <div>Employee #</div>
-                    <div>Name</div>
-                    <div>Shift</div>
-                    <div>Actions</div>
-                </div>
-            `;
+        function renderEmployeesTable(employees) {
+            let html = `<table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="font-weight:600;color:var(--secondary-color);background:var(--hover);">
+                        <th style="padding:0.75rem 0.5rem;">Employee #</th>
+                        <th>Name</th>
+                        <th>Shift</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             employees.forEach(emp => {
-                html += `
-                    <div class="table-row">
-                        <div>${emp.emp_number}</div>
-                        <div>${emp.full_name}</div>
-                        <div>${emp.shift_name || 'N/A'}</div>
-                        <div>
-                            <button class="btn btn-secondary btn-sm" onclick="openEditEmployeeModal(${emp.id})"><i class="fas fa-edit"></i> Edit</button>
-                            ${emp.is_active == 1
-                                ? `<button class="btn btn-warning btn-sm" onclick="deactivateEmployee('${emp.emp_number}')"><i class="fas fa-ban"></i> Deactivate</button>`
-                                : `<button class="btn btn-success btn-sm" onclick="activateEmployee('${emp.emp_number}')"><i class="fas fa-check"></i> Activate</button>`}
-                        </div>
-                    </div>
-                `;
+                html += `<tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:0.75rem 0.5rem;">${emp.emp_number}</td>
+                    <td>${emp.full_name}</td>
+                    <td>${emp.shift_name || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editEmployee(${emp.id})">Edit</button>
+                        <button class="btn btn-warning btn-sm" onclick="toggleEmployeeStatus(${emp.id}, ${emp.is_active})">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
+                    </td>
+                </tr>`;
             });
-            table.innerHTML = html;
+            html += `</tbody></table>`;
+            document.getElementById('employeesTable').innerHTML = html;
         }
 
         // Search/filter employees by employee number
@@ -1700,7 +1670,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             const searchInput = document.getElementById('employeeSearchInput');
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
-                    renderEmployeeTable(getFilteredEmployees());
+                    renderEmployeesTable(getFilteredEmployees());
                 });
             }
 
@@ -1712,13 +1682,13 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     showActiveEmployees = true;
                     tabActive.classList.add('active');
                     tabDeactivated.classList.remove('active');
-                    renderEmployeeTable(getFilteredEmployees());
+                    renderEmployeesTable(getFilteredEmployees());
                 });
                 tabDeactivated.addEventListener('click', function() {
                     showActiveEmployees = false;
                     tabDeactivated.classList.add('active');
                     tabActive.classList.remove('active');
-                    renderEmployeeTable(getFilteredEmployees());
+                    renderEmployeesTable(getFilteredEmployees());
                 });
             }
         });
