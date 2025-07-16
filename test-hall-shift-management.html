@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hall & Shift Management Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .test-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .btn {
+            margin: 0.25rem;
+        }
+        .result {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">🎬 Hall & Shift Management Test</h1>
+        
+        <div class="test-section">
+            <h3>🏢 Cinema Hall Management</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <button class="btn btn-primary" onclick="testGetHalls()">
+                        <i class="fas fa-list"></i> Get Active Halls
+                    </button>
+                    <button class="btn btn-success" onclick="testAddHall()">
+                        <i class="fas fa-plus"></i> Add Test Hall
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-warning" onclick="testUpdateHall()">
+                        <i class="fas fa-edit"></i> Update Hall
+                    </button>
+                    <button class="btn btn-danger" onclick="testDeactivateHall()">
+                        <i class="fas fa-trash"></i> Deactivate Hall
+                    </button>
+                </div>
+            </div>
+            <div id="hallResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>⏰ Shift Management</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <button class="btn btn-primary" onclick="testGetShifts()">
+                        <i class="fas fa-list"></i> Get Shifts by Hall
+                    </button>
+                    <button class="btn btn-success" onclick="testAddShift()">
+                        <i class="fas fa-plus"></i> Add Test Shift
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-warning" onclick="testUpdateShift()">
+                        <i class="fas fa-edit"></i> Update Shift
+                    </button>
+                    <button class="btn btn-danger" onclick="testDeactivateShift()">
+                        <i class="fas fa-trash"></i> Deactivate Shift
+                    </button>
+                </div>
+            </div>
+            <div id="shiftResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔗 Integration Test</h3>
+            <button class="btn btn-info" onclick="testFullWorkflow()">
+                <i class="fas fa-play"></i> Test Full Workflow
+            </button>
+            <div id="workflowResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Test data
+        let testHallId = null;
+        let testShiftId = null;
+        const csrfToken = 'test_token_123'; // In real app, this would come from the server
+
+        function showResult(elementId, data) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function testGetHalls() {
+            try {
+                const response = await fetch('admin-hall-shift-api.php?action=get_active_halls');
+                const data = await response.json();
+                showResult('hallResult', data);
+            } catch (error) {
+                showResult('hallResult', { error: error.message });
+            }
+        }
+
+        async function testAddHall() {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'add_hall');
+                formData.append('hall_name', 'Test Hall ' + Date.now());
+                formData.append('max_attendees_per_booking', '3');
+                formData.append('total_seats', '72');
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('hallResult', data);
+                if (data.success && data.hall_id) {
+                    testHallId = data.hall_id;
+                }
+            } catch (error) {
+                showResult('hallResult', { error: error.message });
+            }
+        }
+
+        async function testUpdateHall() {
+            if (!testHallId) {
+                showResult('hallResult', { error: 'No test hall ID available. Add a hall first.' });
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'update_hall');
+                formData.append('hall_id', testHallId);
+                formData.append('hall_name', 'Updated Test Hall ' + Date.now());
+                formData.append('max_attendees_per_booking', '4');
+                formData.append('total_seats', '80');
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('hallResult', data);
+            } catch (error) {
+                showResult('hallResult', { error: error.message });
+            }
+        }
+
+        async function testDeactivateHall() {
+            if (!testHallId) {
+                showResult('hallResult', { error: 'No test hall ID available. Add a hall first.' });
+                return;
+            }
+
+            if (!confirm('Are you sure you want to deactivate the test hall?')) {
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'deactivate_hall');
+                formData.append('hall_id', testHallId);
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('hallResult', data);
+                if (data.success) {
+                    testHallId = null;
+                }
+            } catch (error) {
+                showResult('hallResult', { error: error.message });
+            }
+        }
+
+        async function testGetShifts() {
+            if (!testHallId) {
+                showResult('shiftResult', { error: 'No test hall ID available. Add a hall first.' });
+                return;
+            }
+
+            try {
+                const response = await fetch(`admin-hall-shift-api.php?action=get_shifts_by_hall&hall_id=${testHallId}`);
+                const data = await response.json();
+                showResult('shiftResult', data);
+            } catch (error) {
+                showResult('shiftResult', { error: error.message });
+            }
+        }
+
+        async function testAddShift() {
+            if (!testHallId) {
+                showResult('shiftResult', { error: 'No test hall ID available. Add a hall first.' });
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'add_shift');
+                formData.append('hall_id', testHallId);
+                formData.append('shift_name', 'Test Shift ' + Date.now());
+                formData.append('shift_code', 'TEST_' + Date.now());
+                formData.append('seat_prefix', 'T');
+                formData.append('seat_count', '72');
+                formData.append('start_time', '19:00:00');
+                formData.append('end_time', '22:00:00');
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('shiftResult', data);
+                if (data.success && data.shift_id) {
+                    testShiftId = data.shift_id;
+                }
+            } catch (error) {
+                showResult('shiftResult', { error: error.message });
+            }
+        }
+
+        async function testUpdateShift() {
+            if (!testShiftId) {
+                showResult('shiftResult', { error: 'No test shift ID available. Add a shift first.' });
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'update_shift');
+                formData.append('shift_id', testShiftId);
+                formData.append('hall_id', testHallId);
+                formData.append('shift_name', 'Updated Test Shift ' + Date.now());
+                formData.append('shift_code', 'UPDATED_TEST_' + Date.now());
+                formData.append('seat_prefix', 'UT');
+                formData.append('seat_count', '80');
+                formData.append('start_time', '20:00:00');
+                formData.append('end_time', '23:00:00');
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('shiftResult', data);
+            } catch (error) {
+                showResult('shiftResult', { error: error.message });
+            }
+        }
+
+        async function testDeactivateShift() {
+            if (!testShiftId) {
+                showResult('shiftResult', { error: 'No test shift ID available. Add a shift first.' });
+                return;
+            }
+
+            if (!confirm('Are you sure you want to deactivate the test shift?')) {
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('action', 'deactivate_shift');
+                formData.append('shift_id', testShiftId);
+                formData.append('csrf_token', csrfToken);
+
+                const response = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('shiftResult', data);
+                if (data.success) {
+                    testShiftId = null;
+                }
+            } catch (error) {
+                showResult('shiftResult', { error: error.message });
+            }
+        }
+
+        async function testFullWorkflow() {
+            const results = [];
+            
+            try {
+                // Step 1: Get current halls
+                results.push('Step 1: Getting current halls...');
+                const hallsResponse = await fetch('admin-hall-shift-api.php?action=get_active_halls');
+                const hallsData = await hallsResponse.json();
+                results.push('Halls result:', hallsData);
+
+                // Step 2: Add a test hall
+                results.push('\nStep 2: Adding test hall...');
+                const addHallFormData = new FormData();
+                addHallFormData.append('action', 'add_hall');
+                addHallFormData.append('hall_name', 'Workflow Test Hall ' + Date.now());
+                addHallFormData.append('max_attendees_per_booking', '3');
+                addHallFormData.append('total_seats', '72');
+                addHallFormData.append('csrf_token', csrfToken);
+
+                const addHallResponse = await fetch('admin-hall-shift-api.php', {
+                    method: 'POST',
+                    body: addHallFormData
+                });
+                const addHallData = await addHallResponse.json();
+                results.push('Add hall result:', addHallData);
+
+                if (addHallData.success) {
+                    const workflowHallId = addHallData.hall_id;
+                    
+                    // Step 3: Add a test shift
+                    results.push('\nStep 3: Adding test shift...');
+                    const addShiftFormData = new FormData();
+                    addShiftFormData.append('action', 'add_shift');
+                    addShiftFormData.append('hall_id', workflowHallId);
+                    addShiftFormData.append('shift_name', 'Workflow Test Shift ' + Date.now());
+                    addShiftFormData.append('shift_code', 'WORKFLOW_TEST_' + Date.now());
+                    addShiftFormData.append('seat_prefix', 'W');
+                    addShiftFormData.append('seat_count', '72');
+                    addShiftFormData.append('start_time', '19:00:00');
+                    addShiftFormData.append('end_time', '22:00:00');
+                    addShiftFormData.append('csrf_token', csrfToken);
+
+                    const addShiftResponse = await fetch('admin-hall-shift-api.php', {
+                        method: 'POST',
+                        body: addShiftFormData
+                    });
+                    const addShiftData = await addShiftResponse.json();
+                    results.push('Add shift result:', addShiftData);
+
+                    // Step 4: Get shifts for the hall
+                    results.push('\nStep 4: Getting shifts for the hall...');
+                    const shiftsResponse = await fetch(`admin-hall-shift-api.php?action=get_shifts_by_hall&hall_id=${workflowHallId}`);
+                    const shiftsData = await shiftsResponse.json();
+                    results.push('Get shifts result:', shiftsData);
+                }
+
+                showResult('workflowResult', results.join('\n'));
+            } catch (error) {
+                results.push('Error:', error.message);
+                showResult('workflowResult', results.join('\n'));
+            }
+        }
+    </script>
+</body>
+</html> 
