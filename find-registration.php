@@ -55,6 +55,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+        }
         .find-registration-container {
             max-width: 600px;
             margin: 2rem auto;
@@ -239,11 +245,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 3rem;
             color: #4ade80;
         }
+        .btn.btn-secondary {
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="find-registration-container">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                <a href="index.php" class="btn btn-secondary" style="min-width:unset; width:auto; padding:0.5rem 1.25rem; font-size:0.95rem;">
+                    🔙 Back to Registration
+                </a>
+            </div>
             <div class="find-registration-header">
                 <h1><i class="fas fa-search"></i> Find My Registration</h1>
                 <p>Enter your employee number to find your registration information</p>
@@ -334,9 +350,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             <?php endif; ?>
             
-            <a href="index.php" class="btn-back">
-                <i class="fas fa-arrow-left"></i> Back to Registration
-            </a>
         </div>
     </div>
 </body>

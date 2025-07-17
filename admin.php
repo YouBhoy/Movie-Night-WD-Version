@@ -756,32 +756,90 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             .table-row, .data-table .table-row {
                 grid-template-columns: 1fr 1fr 1fr 1fr;
             }
-            
             .table-row > div {
                 padding: 0.25rem 0;
             }
-            
             .actions {
                 flex-direction: column;
+                gap: 0.75rem;
+                align-items: stretch;
             }
-            
-            .nav-tabs {
+            .nav-tabs, .tab-list {
                 flex-direction: column;
+                gap: 0.5rem;
+                align-items: stretch;
             }
-            
             .seat-grid {
                 grid-template-columns: repeat(5, 1fr);
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 1rem;
+                padding: 1rem 0.5rem 0.5rem 0.5rem !important;
+            }
+            .admin-header nav {
+                width: 100%;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .tab-list {
+                width: 100%;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .tab-item a {
+                width: 100%;
+                display: block;
+                text-align: left;
             }
         }
         @media (max-width: 600px) {
             .container {
                 padding: 0.5rem;
             }
-            .header {
-                padding: 1rem 0 0.5rem 0;
+            .header, .admin-header {
+                padding: 0.5rem 0.25rem 0.5rem 0.25rem !important;
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-start !important;
+            }
+            .header-title {
+                font-size: 1.2rem !important;
+            }
+            .tab-list {
+                flex-direction: column;
+                gap: 0.25rem;
+                width: 100%;
+            }
+            .actions {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: stretch;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
             }
             .data-table, .form-section, .stat-card, .info-card {
-                padding: 1rem;
+                padding: 0.5rem;
+            }
+            .data-table {
+                overflow-x: auto;
+            }
+            .table-header, .table-content {
+                font-size: 0.9rem;
+            }
+            .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-warning {
+                font-size: 1rem;
+                padding: 0.7rem 1rem;
+                width: 100%;
+                box-sizing: border-box;
             }
         }
     </style>
@@ -811,7 +869,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     </ul>
                     <div style="display: flex; gap: 0.75rem; margin-left: 2rem;">
                         <a href="index.php" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; text-decoration: none;">Back to Registration</a>
-                        <a href="?tab=dashboard" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; text-decoration: none;">Back to Dashboard</a>
+                        <a href="admin-dashboard.php" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; text-decoration: none;">Back to Dashboard</a>
                     </div>
                 </nav>
             </header>
