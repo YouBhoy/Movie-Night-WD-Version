@@ -143,6 +143,12 @@ $csrfToken = generateCSRFToken();
     </div>
 
     <style>
+        body, .dark-theme {
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+        }
         .admin-login-container {
             min-height: 100vh;
             display: flex;

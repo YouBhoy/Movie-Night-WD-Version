@@ -80,6 +80,10 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         body, .dark-theme {
             background: var(--background);
             color: var(--text-primary);
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
         }
         .header {
             background: var(--card);

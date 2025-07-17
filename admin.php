@@ -789,17 +789,36 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
 <body>
     <div class="container">
         <?php if ($logged_in): ?>
-            <!-- Dashboard -->
+            <!-- Header with navigation -->
+            <header class="admin-header" style="background: var(--card); color: var(--text-primary); padding: 1.5rem 2rem 1rem 2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 16px 0 rgba(0,0,0,0.2); border-bottom: 1px solid var(--border);">
+                <div class="header-title" style="font-size: 2rem; font-weight: 700; letter-spacing: 2px; color: var(--secondary-color); display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas fa-film"></i> Admin Panel
+                </div>
+                <nav style="display: flex; align-items: center; gap: 2rem;">
+                    <ul class="tab-list" style="display: flex; gap: 1.5rem; list-style: none; margin: 0; padding: 0;">
+                        <li class="tab-item<?php if ($current_tab === 'dashboard') echo ' active'; ?>" style="font-weight: 600;">
+                            <a href="?tab=dashboard" style="color: <?php echo $current_tab === 'dashboard' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'dashboard' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Dashboard</a>
+                        </li>
+                        <li class="tab-item<?php if ($current_tab === 'settings') echo ' active'; ?>" style="font-weight: 600;">
+                            <a href="?tab=settings" style="color: <?php echo $current_tab === 'settings' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'settings' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Event Settings</a>
+                        </li>
+                        <li class="tab-item<?php if ($current_tab === 'employees') echo ' active'; ?>" style="font-weight: 600;">
+                            <a href="?tab=employees" style="color: <?php echo $current_tab === 'employees' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'employees' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Employee Settings</a>
+                        </li>
+                        <li class="tab-item<?php if ($current_tab === 'export') echo ' active'; ?>" style="font-weight: 600;">
+                            <a href="?tab=export" style="color: <?php echo $current_tab === 'export' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'export' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Export</a>
+                        </li>
+                    </ul>
+                    <div style="display: flex; gap: 0.75rem; margin-left: 2rem;">
+                        <a href="index.php" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; text-decoration: none;">Back to Registration</a>
+                        <a href="?tab=dashboard" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; text-decoration: none;">Back to Dashboard</a>
+                    </div>
+                </nav>
+            </header>
+            <!-- End Header -->
+            
             <a href="?logout=1" class="logout-link">
                 <i class="fas fa-sign-out-alt"></i> Logout
-            </a>
-            
-            <a href="index.php" class="back-to-registration-link">
-                <i class="fas fa-arrow-left"></i> Back to Registration
-            </a>
-            
-            <a href="admin-dashboard.php" class="back-to-dashboard-link" style="position:absolute;top:0;left:180px;color:#94a3b8;text-decoration:none;font-size:0.9rem;padding:0.5rem 1rem;border:1px solid rgba(255,255,255,0.2);border-radius:8px;transition:all 0.3s ease;">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
             </a>
             
             <div class="header">
@@ -810,26 +829,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             <?php if (isset($db_error)): ?>
                 <div class="error"><?php echo htmlspecialchars($db_error); ?></div>
             <?php else: ?>
-                <!-- Navigation Tabs -->
-                <div class="nav-tabs">
-                    <a href="?tab=dashboard" class="nav-tab <?php echo $current_tab === 'dashboard' ? 'active' : ''; ?>">
-                        <i class="fas fa-chart-bar"></i> Dashboard
-                    </a>
-                    <!-- Removed Seat Layout Tab -->
-                    <a href="?tab=settings" class="nav-tab <?php echo $current_tab === 'settings' ? 'active' : ''; ?>">
-                        <i class="fas fa-cog"></i> Event Settings
-                    </a>
-                    <a href="?tab=employees" class="nav-tab <?php echo $current_tab === 'employees' ? 'active' : ''; ?>">
-                        <i class="fas fa-id-card"></i> Employees
-                    </a>
-                    <a href="?tab=export" class="nav-tab <?php echo $current_tab === 'export' ? 'active' : ''; ?>">
-                        <i class="fas fa-download"></i> Export
-                    </a>
-                    <a href="?tab=labels" class="nav-tab <?php echo $current_tab === 'labels' ? 'active' : ''; ?>">
-                        <i class="fas fa-tags"></i> Labels & Names
-                    </a>
-                </div>
-                
                 <!-- Tab Content -->
                 <?php if ($current_tab === 'dashboard'): ?>
                     <!-- Dashboard Tab -->
@@ -1127,40 +1126,6 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                             </a>
                         </div>
                     </div>
-                <?php elseif ($current_tab === 'labels'): ?>
-                    <!-- Labels & Names Tab -->
-                    <div class="form-section">
-                        <h2><i class="fas fa-tags"></i> Labels & Names</h2>
-                        <p>Edit the names of shifts and cinema halls as they appear to users.</p>
-                        <div class="form-grid" style="margin-bottom:2rem;">
-                            <h3 style="color:var(--secondary-color);">Shifts</h3>
-                            <div id="shiftNamesTable">
-                                <?php
-                                $shifts = $pdo->query("SELECT id, shift_name, hall_id FROM shifts ORDER BY id")->fetchAll();
-                                foreach ($shifts as $shift): ?>
-                                    <div class="form-group" style="display:flex;align-items:center;gap:1rem;">
-                                        <label style="min-width:80px;">Shift #<?php echo $shift['id']; ?></label>
-                                        <input type="text" id="shift_name_<?php echo $shift['id']; ?>" value="<?php echo htmlspecialchars($shift['shift_name']); ?>" style="flex:1;">
-                                        <button type="button" class="btn btn-primary" onclick="saveShiftName(<?php echo $shift['id']; ?>)"><i class="fas fa-save"></i> Save</button>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                        <div class="form-grid">
-                            <h3 style="color:var(--secondary-color);">Cinema Halls</h3>
-                            <div id="hallNamesTable">
-                                <?php
-                                $halls = $pdo->query("SELECT id, hall_name FROM cinema_halls ORDER BY id")->fetchAll();
-                                foreach ($halls as $hall): ?>
-                                    <div class="form-group" style="display:flex;align-items:center;gap:1rem;">
-                                        <label style="min-width:80px;">Hall #<?php echo $hall['id']; ?></label>
-                                        <input type="text" id="hall_name_<?php echo $hall['id']; ?>" value="<?php echo htmlspecialchars($hall['hall_name']); ?>" style="flex:1;">
-                                        <button type="button" class="btn btn-primary" onclick="saveHallName(<?php echo $hall['id']; ?>)"><i class="fas fa-save"></i> Save</button>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
                 <?php endif; ?>
             <?php endif; ?>
             
@@ -1293,7 +1258,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showToast(settingKey.replace('_', ' ') + ' saved successfully', 'success');
+                    showToast(settingKey.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' Saved Successfully', 'success');
                 } else {
                     showToast('Error saving setting: ' + data.message, 'error');
                 }
@@ -1656,7 +1621,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     <td>${emp.full_name}</td>
                     <td>${emp.shift_name || 'N/A'}</td>
                     <td>
-                        <button class="btn btn-secondary btn-sm" onclick="editEmployee(${emp.id})">Edit</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openEditEmployeeModal(${emp.id})">Edit</button>
                         <button class="btn btn-warning btn-sm" onclick="toggleEmployeeStatus(${emp.id}, ${emp.is_active})">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
                     </td>
                 </tr>`;
