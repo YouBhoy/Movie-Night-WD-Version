@@ -2630,3 +2630,11 @@
 [17-Jul-2025 23:22:11 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
 [17-Jul-2025 23:22:35 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
 [17-Jul-2025 23:22:43 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[17-Jul-2025 23:27:41 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[17-Jul-2025 23:27:52 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[17-Jul-2025 23:32:49 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[17-Jul-2025 23:33:14 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[17-Jul-2025 23:37:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[17-Jul-2025 23:38:02 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5
+[18-Jul-2025 16:52:23 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
+[18-Jul-2025 16:52:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 5

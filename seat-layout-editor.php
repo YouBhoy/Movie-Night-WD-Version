@@ -598,6 +598,11 @@ $csrfToken = generateCSRFToken();
             font-weight: 600;
         }
 
+        .seat.selected {
+            border: 2px solid #ffd700 !important;
+            box-shadow: 0 0 10px #ffd70055;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -904,6 +909,7 @@ $csrfToken = generateCSRFToken();
         let currentSeats = [];
         let gridSize = { rows: 10, cols: 10 }; // This variable is no longer used for grid size, but kept for potential future use or if other parts of the code rely on it.
         let hasChanges = false;
+        let selectedSeatId = null;
 
         // DOM Elements
         const hallSelector = document.getElementById('hallSelector');
@@ -1059,13 +1065,13 @@ $csrfToken = generateCSRFToken();
                     if (seat) {
                         // Existing seat
                         html += `
-                            <div class="seat ${seat.status}" 
+                            <div class="seat ${seat.status}${selectedSeatId == seat.id ? ' selected' : ''}" 
                                  data-seat-id="${seat.id}" 
                                  data-row="${rowLetter}" 
                                  data-col="${col}"
-                                 onclick="toggleSeatStatus(${seat.id})">
+                                 onclick="selectSeat(event, '${seat.id}')">
                                 ${seat.seat_number}
-                                <button class="delete-btn" onclick="deleteSeat(${seat.id}, event)">
+                                <button class="delete-btn" onclick="deleteSeat('${seat.id}', event)">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
@@ -1090,6 +1096,17 @@ $csrfToken = generateCSRFToken();
             updateSaveButton();
         }
 
+        function selectSeat(event, seatId) {
+            event.stopPropagation();
+            if (selectedSeatId === seatId) {
+                // Deselect if already selected
+                selectedSeatId = null;
+            } else {
+                selectedSeatId = seatId;
+            }
+            renderSeatGrid();
+        }
+
         function toggleSeatStatus(seatId) {
             const seat = currentSeats.find(s => s.id == seatId);
             if (!seat) return;
@@ -1112,7 +1129,15 @@ $csrfToken = generateCSRFToken();
 
         function deleteSeat(seatId, event) {
             event.stopPropagation();
-            
+            console.log('deleteSeat called with seatId:', seatId, 'type:', typeof seatId);
+            // If seat is a new (unsaved) seat, just remove from currentSeats
+            if (String(seatId).startsWith('temp_')) {
+                currentSeats = currentSeats.filter(s => String(s.id) !== String(seatId));
+                renderSeatGrid();
+                hasChanges = true;
+                updateSaveButton();
+                return;
+            }
             if (!confirm('Are you sure you want to delete this seat?')) return;
 
             fetch('seat-layout-editor.php', {

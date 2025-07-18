@@ -68,7 +68,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         :root {
             --background: #121212;
             --card: #1E1E1E;
-            --primary-color: #E50914;
+            --primary-color: #FFD700;
             --secondary-color: #FFD700;
             --text-primary: #FFFFFF;
             --text-muted: #B0B0B0;
@@ -175,20 +175,20 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         .cta-button {
             display: inline-block;
             background: var(--primary-color);
-            color: #fff;
+            color: #000;
             padding: 1rem 2rem;
             border-radius: 50px;
             text-decoration: none;
             font-weight: 600;
             font-size: 1.125rem;
             transition: all 0.3s ease;
-            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.3);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
         }
         .cta-button:hover {
             background: var(--secondary-color);
             color: #000;
             transform: translateY(-3px);
-            box-shadow: 0 15px 40px rgba(229, 9, 20, 0.4);
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.4);
         }
         .cta-button.disabled {
             background: #64748b;
@@ -370,11 +370,11 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         }
         
         .find-registration-btn:hover {
-            background: rgba(var(--primary-color-rgb), 0.1);
+            background: rgba(255, 215, 0, 0.1);
             border-color: var(--primary-color);
             color: var(--primary-color);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.2);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
         }
         
         .find-registration-btn i {
