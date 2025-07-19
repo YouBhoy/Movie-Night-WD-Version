@@ -92,7 +92,7 @@ try {
             // Check if seats table exists
             $checkStmt = $pdo->query("SHOW TABLES LIKE 'seats'");
             if ($checkStmt->rowCount() === 0) {
-                echo json_encode(['success' => true, 'seats' => []]);
+                echo json_encode(['success' => true, 'seats' => [], 'all_seat_halls' => []]);
                 exit;
             }
             
@@ -105,8 +105,12 @@ try {
             ");
             $stmt->execute([$hallId, $shiftId]);
             $seats = $stmt->fetchAll();
-            
-            echo json_encode(['success' => true, 'seats' => $seats]);
+
+            // Get all seat numbers and their hall assignments
+            $allStmt = $pdo->query("SELECT seat_number, hall_id FROM seats");
+            $allSeatHalls = $allStmt->fetchAll();
+
+            echo json_encode(['success' => true, 'seats' => $seats, 'all_seat_halls' => $allSeatHalls]);
             break;
             
         case 'get_event_settings':
@@ -133,7 +137,22 @@ try {
                 echo json_encode(['success' => true, 'employees' => []]);
                 exit;
             }
-            $stmt = $pdo->query("SELECT e.id, e.emp_number, e.full_name, s.shift_name, e.is_active FROM employees e LEFT JOIN shifts s ON e.shift_id = s.id ORDER BY e.full_name");
+            
+            // Get employees with registration status
+            $stmt = $pdo->query("
+                SELECT 
+                    e.id, 
+                    e.emp_number, 
+                    e.full_name, 
+                    e.shift_id,
+                    s.shift_name, 
+                    e.is_active,
+                    CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END as has_active_registration
+                FROM employees e 
+                LEFT JOIN shifts s ON e.shift_id = s.id 
+                LEFT JOIN registrations r ON e.emp_number = r.emp_number AND r.status = 'active'
+                ORDER BY e.full_name
+            ");
             $employees = $stmt->fetchAll();
             echo json_encode(['success' => true, 'employees' => $employees]);
             break;

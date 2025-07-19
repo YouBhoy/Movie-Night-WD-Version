@@ -661,9 +661,6 @@ $csrfToken = generateCSRFToken();
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="button" id="hallSettingsBtn" class="btn btn-link" style="margin-left: 0.5rem; color: #ffd700; font-size: 1.2rem;" title="Manage Halls" onclick="showHallManagement()">
-                        <i class="fas fa-cog"></i>
-                    </button>
                 </div>
                 
                 <div class="form-group" style="position: relative; display: flex; align-items: center;">
@@ -671,9 +668,6 @@ $csrfToken = generateCSRFToken();
                     <select id="shiftSelector" class="form-select">
                         <option value="">Select a shift</option>
                     </select>
-                    <button type="button" id="shiftSettingsBtn" class="btn btn-link" style="margin-left: 0.5rem; color: #ffd700; font-size: 1.2rem;" title="Manage Shifts" onclick="showShiftManagement()">
-                        <i class="fas fa-cog"></i>
-                    </button>
                 </div>
             </div>
 
@@ -995,13 +989,10 @@ $csrfToken = generateCSRFToken();
 
         function loadSeatLayout() {
             if (!currentHallId || !currentShiftId) return;
-
             const hall = halls.find(h => h.id == currentHallId);
             const shift = shifts.find(s => s.id == currentShiftId);
-            
             gridTitle.textContent = `${hall.hall_name} - ${shift.shift_name}`;
             seatGrid.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="loading"></div> Loading seats...</div>';
-
             fetch('admin-api.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1071,9 +1062,10 @@ $csrfToken = generateCSRFToken();
                                  data-col="${col}"
                                  onclick="selectSeat(event, '${seat.id}')">
                                 ${seat.seat_number}
-                                <button class="delete-btn" onclick="deleteSeat('${seat.id}', event)">
-                                    <i class="fas fa-times"></i>
-                                </button>
+                                ${seat.status === 'reserved' ? '<span class="lock-icon" style="margin-left:4px; color:#ffd700;" title="Reserved"><i class="fas fa-lock"></i></span>' : ''}
+                                ${seat.status === 'blocked' ? '<span class="lock-icon" style="margin-left:4px; color:#6b7280;" title="Blocked"><i class="fas fa-ban"></i></span>' : ''}
+                                ${seat.status === 'occupied' ? '<span class="lock-icon" style="margin-left:4px; color:#ef4444;" title="Occupied"><i class="fas fa-user"></i></span>' : ''}
+                                <button class="delete-btn" onclick="deleteSeat('${seat.id}', event)"><i class="fas fa-times"></i></button>
                             </div>
                         `;
                     } else {
@@ -1097,9 +1089,9 @@ $csrfToken = generateCSRFToken();
         }
 
         function selectSeat(event, seatId) {
+            const seat = currentSeats.find(s => s.id == seatId);
             event.stopPropagation();
             if (selectedSeatId === seatId) {
-                // Deselect if already selected
                 selectedSeatId = null;
             } else {
                 selectedSeatId = seatId;
@@ -1128,6 +1120,8 @@ $csrfToken = generateCSRFToken();
         }
 
         function deleteSeat(seatId, event) {
+            const seat = currentSeats.find(s => s.id == seatId);
+            if (!seat) return;
             event.stopPropagation();
             console.log('deleteSeat called with seatId:', seatId, 'type:', typeof seatId);
             // If seat is a new (unsaved) seat, just remove from currentSeats
@@ -1762,7 +1756,19 @@ $csrfToken = generateCSRFToken();
             return container;
         }
 
-
     </script>
+    <style>
+        /* Add CSS for locked seats */
+        .seat.locked {
+            opacity: 0.6;
+            pointer-events: none;
+            background: repeating-linear-gradient(135deg, #ffd70022 0 10px, #222 10px 20px);
+            color: #bfa100 !important;
+            border: 2px solid #bfa100 !important;
+        }
+        .seat.locked .lock-icon {
+            margin-left: 4px;
+        }
+    </style>
 </body>
 </html> 

@@ -129,11 +129,66 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 
                 if ($emp_id > 0) {
                     $new_status = $current_status == 1 ? 0 : 1;
+                    
+                    // If deactivating employee, free their seats first
+                    if ($new_status == 0) {
+                        // Get employee number
+                        $empStmt = $pdo->prepare("SELECT emp_number FROM employees WHERE id = ?");
+                        $empStmt->execute([$emp_id]);
+                        $employee = $empStmt->fetch();
+                        
+                        if ($employee) {
+                            // Find active registration for this employee
+                            $regStmt = $pdo->prepare("SELECT id FROM registrations WHERE emp_number = ? AND status = 'active' LIMIT 1");
+                            $regStmt->execute([$employee['emp_number']]);
+                            $registration = $regStmt->fetch();
+                            
+                            if ($registration) {
+                                // Free seats and cancel registration
+                                $reg_id = $registration['id'];
+                                $pdo->query("SET @reg_id = " . intval($reg_id));
+                                $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                            }
+                        }
+                    }
+                    
+                    // Update employee status
                     $stmt = $pdo->prepare("UPDATE employees SET is_active = ? WHERE id = ?");
                     $stmt->execute([$new_status, $emp_id]);
                     
+                    // Get employee details for logging
+                    $empDetailsStmt = $pdo->prepare("SELECT emp_number, full_name FROM employees WHERE id = ?");
+                    $empDetailsStmt->execute([$emp_id]);
+                    $empDetails = $empDetailsStmt->fetch();
+                    
+                    // Log the activity
+                    $adminUser = $_SESSION['admin_username'] ?? 'admin';
+                    $action = $new_status == 1 ? 'employee_activated' : 'employee_deactivated';
+                    $details = $new_status == 1 ? 
+                        "Employee activated: {$empDetails['emp_number']} - {$empDetails['full_name']}" :
+                        "Employee deactivated: {$empDetails['emp_number']} - {$empDetails['full_name']}";
+                    
+                    if ($new_status == 0 && isset($registration) && $registration) {
+                        $details .= " (Registration cancelled, seats freed)";
+                    }
+                    
+                    $logStmt = $pdo->prepare("INSERT INTO admin_activity_log (admin_user, action, target_type, target_id, details, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                    $logStmt->execute([
+                        $adminUser,
+                        $action,
+                        'employee',
+                        $emp_id,
+                        $details,
+                        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+                    ]);
+                    
                     $status_text = $new_status == 1 ? 'activated' : 'deactivated';
-                    echo json_encode(['success' => true, 'message' => 'Employee ' . $status_text . ' successfully']);
+                    $message = 'Employee ' . $status_text . ' successfully';
+                    if ($new_status == 0) {
+                        $message .= ' and seat(s) freed';
+                    }
+                    echo json_encode(['success' => true, 'message' => $message]);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Invalid employee ID']);
                 }
@@ -174,37 +229,7 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                     echo json_encode(['success' => false, 'message' => 'Invalid hall ID or name']);
                 }
                 exit;
-            case 'deactivate_employee':
-                $emp_number = $_POST['emp_number'] ?? '';
-                if (empty($emp_number)) {
-                    echo json_encode(['success' => false, 'message' => 'Employee number required']);
-                    exit;
-                }
-                // Find active registration for this employee
-                $stmt = $pdo->prepare("SELECT id FROM registrations WHERE emp_number = ? AND status = 'active' LIMIT 1");
-                $stmt->execute([$emp_number]);
-                $reg = $stmt->fetch();
-                if ($reg) {
-                    // Free seats and cancel registration
-                    $reg_id = $reg['id'];
-                    $pdo->query("SET @reg_id = " . intval($reg_id));
-                    $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
-                }
-                // Deactivate employee
-                $updateStmt = $pdo->prepare("UPDATE employees SET is_active = 0 WHERE emp_number = ?");
-                $updateStmt->execute([$emp_number]);
-                echo json_encode(['success' => true, 'message' => 'Employee deactivated and seat freed']);
-                exit;
-            case 'activate_employee':
-                $emp_number = $_POST['emp_number'] ?? '';
-                if (empty($emp_number)) {
-                    echo json_encode(['success' => false, 'message' => 'Employee number required']);
-                    exit;
-                }
-                $updateStmt = $pdo->prepare("UPDATE employees SET is_active = 1 WHERE emp_number = ?");
-                $updateStmt->execute([$emp_number]);
-                echo json_encode(['success' => true, 'message' => 'Employee activated']);
-                exit;
+
             case 'update_employee':
                 $id = (int)($_POST['id'] ?? 0);
                 $emp_number = trim($_POST['emp_number'] ?? '');
@@ -1116,10 +1141,30 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     
                 <?php elseif ($current_tab === 'employees'): ?>
                     <!-- Employees Tab -->
-                    <div class="form-section">
-                        <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
-                            <h2 style="margin-bottom: 0;"><i class="fas fa-id-card"></i> Employee Management</h2>
-                        </div>
+                                            <div class="form-section">
+                            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                                <h2 style="margin-bottom: 0;"><i class="fas fa-id-card"></i> Employee Management</h2>
+                            </div>
+                            
+                            <!-- Help Section -->
+                            <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+                                <h4 style="color: #3b82f6; margin-bottom: 0.5rem; font-size: 1rem;">
+                                    <i class="fas fa-info-circle"></i> Employee Deactivation & Seat Management
+                                </h4>
+                                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0; line-height: 1.5;">
+                                    <strong>Automatic Seat Freeing:</strong> When you deactivate an employee, the system automatically:
+                                </p>
+                                <ul style="color: var(--text-muted); font-size: 0.9rem; margin: 0.5rem 0 0 1.5rem; line-height: 1.5;">
+                                    <li>Finds their active registration (if any)</li>
+                                    <li>Frees their reserved seat(s)</li>
+                                    <li>Cancels their registration</li>
+                                    <li>Marks the employee as inactive</li>
+                                </ul>
+                                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0.5rem 0 0 0; line-height: 1.5;">
+                                    <strong>Visual Indicators:</strong> Employees with active registrations are marked with 📋 "Has Registration" 
+                                    to help you identify who will have their seats freed when deactivated.
+                                </p>
+                            </div>
                         <!-- Add Employee Form -->
                         <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid rgba(255, 255, 255, 0.1);">
                             <h3 style="margin-bottom: 1rem; color: var(--secondary-color);">Add New Employee</h3>
@@ -1148,12 +1193,34 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         </div>
                         
                         <!-- Employees List Area -->
-                        <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem;">
-                            <div class="tab-nav" id="employeeTabNav" style="display: flex; gap: 0.5rem;">
-                                <button class="tab-btn active" id="tabActiveEmployees">Active Employees</button>
-                                <button class="tab-btn" id="tabDeactivatedEmployees">Deactivated Employees</button>
+                        <div style="margin-bottom: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                                <div class="tab-nav" id="employeeTabNav" style="display: flex; gap: 0.5rem;">
+                                    <button class="tab-btn active" id="tabActiveEmployees">Active Employees</button>
+                                    <button class="tab-btn" id="tabDeactivatedEmployees">Deactivated Employees</button>
+                                </div>
+                                <input type="text" id="employeeSearchInput" class="search-input" placeholder="Search by Employee Number..." style="max-width: 300px; margin-left: 1rem;">
                             </div>
-                            <input type="text" id="employeeSearchInput" class="search-input" placeholder="Search by Employee Number..." style="max-width: 300px; margin-left: 1rem;">
+                            <div id="employeeSummary" style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid rgba(255, 255, 255, 0.1);">
+                                <div style="display: flex; gap: 2rem; justify-content: space-around;">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--secondary-color);" id="totalEmployees">-</div>
+                                        <div style="font-size: 0.875rem; color: var(--text-muted);">Total Employees</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: 600; color: #22c55e;" id="activeEmployees">-</div>
+                                        <div style="font-size: 0.875rem; color: var(--text-muted);">Active</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: 600; color: #ef4444;" id="inactiveEmployees">-</div>
+                                        <div style="font-size: 0.875rem; color: var(--text-muted);">Inactive</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 1.5rem; font-weight: 600; color: #f59e0b;" id="employeesWithRegistration">-</div>
+                                        <div style="font-size: 0.875rem; color: var(--text-muted);">With Registration</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="data-table" style="margin-top:2rem;">
                             <div class="table-header">
@@ -1639,6 +1706,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     if (data.success) {
                         allEmployees = data.employees;
                         renderEmployeesTable(getFilteredEmployees());
+                        updateEmployeeSummary();
                     } else {
                         table.innerHTML = '<div style="padding:2rem;text-align:center;color:#ef4444;">Error loading employees: ' + data.message + '</div>';
                     }
@@ -1646,6 +1714,21 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 .catch(() => {
                     table.innerHTML = '<div style="padding:2rem;text-align:center;color:#ef4444;">Error loading employees</div>';
                 });
+        }
+        
+        // Update employee summary statistics
+        function updateEmployeeSummary() {
+            if (!allEmployees || allEmployees.length === 0) return;
+            
+            const total = allEmployees.length;
+            const active = allEmployees.filter(emp => emp.is_active == 1).length;
+            const inactive = total - active;
+            const withRegistration = allEmployees.filter(emp => emp.has_active_registration == 1).length;
+            
+            document.getElementById('totalEmployees').textContent = total;
+            document.getElementById('activeEmployees').textContent = active;
+            document.getElementById('inactiveEmployees').textContent = inactive;
+            document.getElementById('employeesWithRegistration').textContent = withRegistration;
         }
 
         // Get filtered employees based on tab and search
@@ -1669,15 +1752,24 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                         <th style="padding:0.75rem 0.5rem;">Employee #</th>
                         <th>Name</th>
                         <th>Shift</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>`;
             employees.forEach(emp => {
+                const statusBadge = emp.is_active == 1 ? 
+                    '<span class="status-badge" style="background: #22c55e; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">Active</span>' :
+                    '<span class="status-badge" style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">Inactive</span>';
+                
+                const hasRegistration = emp.has_active_registration ? 
+                    '<span style="color: #f59e0b; font-size: 0.75rem; margin-left: 0.5rem; cursor: help;" title="This employee has an active registration. Deactivating them will free their seat(s).">📋 Has Registration</span>' : '';
+                
                 html += `<tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:0.75rem 0.5rem;">${emp.emp_number}</td>
-                    <td>${emp.full_name}</td>
+                    <td>${emp.full_name}${hasRegistration}</td>
                     <td>${emp.shift_name || 'N/A'}</td>
+                    <td>${statusBadge}</td>
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="openEditEmployeeModal(${emp.id})">Edit</button>
                         <button class="btn btn-warning btn-sm" onclick="toggleEmployeeStatus(${emp.id}, ${emp.is_active})">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
@@ -1724,45 +1816,54 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             }
         });
 
-        // Deactivate employee function
-        function deactivateEmployee(empNumber) {
-            if (!confirm('Are you sure you want to deactivate this employee and free their seat?')) return;
+        // Toggle employee status function (replaces separate activate/deactivate functions)
+        function toggleEmployeeStatus(empId, currentStatus) {
+            const action = currentStatus == 1 ? 'deactivate' : 'activate';
+            const employee = allEmployees.find(emp => emp.id == empId);
+            let confirmMessage;
+            
+            if (currentStatus == 1) {
+                // Deactivating - check if they have active registration
+                confirmMessage = 'Are you sure you want to deactivate this employee?\n\n' +
+                    'Employee: ' + (employee ? employee.full_name : 'Unknown') + '\n' +
+                    'Employee #: ' + (employee ? employee.emp_number : 'Unknown') + '\n\n' +
+                    '⚠️  This action will:\n' +
+                    '• Deactivate the employee\n' +
+                    '• Free their seat(s) if they have an active registration\n' +
+                    '• Cancel their current registration\n\n' +
+                    'This action cannot be undone. Continue?';
+            } else {
+                // Activating
+                confirmMessage = 'Are you sure you want to activate this employee?\n\n' +
+                    'Employee: ' + (employee ? employee.full_name : 'Unknown') + '\n' +
+                    'Employee #: ' + (employee ? employee.emp_number : 'Unknown') + '\n\n' +
+                    'This will allow them to register for the event again.';
+            }
+            
+            if (!confirm(confirmMessage)) return;
+            
+            const formData = new FormData();
+            formData.append('action', 'toggle_employee_status');
+            formData.append('emp_id', empId);
+            formData.append('current_status', currentStatus);
+            
             fetch('admin.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=deactivate_employee&emp_number=${encodeURIComponent(empNumber)}`
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showToast('Employee deactivated and seat freed', 'success');
+                    showToast(data.message, 'success');
                     loadEmployees();
                 } else {
                     showToast('Error: ' + data.message, 'error');
                 }
             })
-            .catch(() => showToast('Error deactivating employee', 'error'));
+            .catch(() => showToast('Error updating employee status', 'error'));
         }
 
-        // Activate employee function
-        function activateEmployee(empNumber) {
-            if (!confirm('Are you sure you want to activate this employee?')) return;
-            fetch('admin.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=activate_employee&emp_number=${encodeURIComponent(empNumber)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('Employee activated', 'success');
-                    loadEmployees();
-                } else {
-                    showToast('Error: ' + data.message, 'error');
-                }
-            })
-            .catch(() => showToast('Error activating employee', 'error'));
-        }
+
 
         function openEditEmployeeModal(empId) {
             const emp = allEmployees.find(e => e.id == empId);
