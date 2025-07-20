@@ -287,6 +287,57 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 }
                 echo json_encode(['success' => true, 'message' => $msg, 'registration_cancelled' => $registrationCancelled]);
                 exit;
+            case 'delete_employee_cleanup':
+                $emp_id = (int)($_POST['emp_id'] ?? 0);
+                if ($emp_id > 0) {
+                    // Check if employee is deactivated
+                    $empStmt = $pdo->prepare("SELECT emp_number, full_name, is_active FROM employees WHERE id = ?");
+                    $empStmt->execute([$emp_id]);
+                    $employee = $empStmt->fetch();
+                    if (!$employee) {
+                        echo json_encode(['success' => false, 'message' => 'Employee not found']);
+                        exit;
+                    }
+                    if ($employee['is_active'] != 0) {
+                        echo json_encode(['success' => false, 'message' => 'Employee must be deactivated before deletion']);
+                        exit;
+                    }
+                    // Delete all registrations and free seats for this employee
+                    $regStmt = $pdo->prepare("SELECT id, status FROM registrations WHERE emp_number = ?");
+                    $regStmt->execute([$employee['emp_number']]);
+                    $registrations = $regStmt->fetchAll();
+                    foreach ($registrations as $registration) {
+                        $reg_id = $registration['id'];
+                        if ($registration['status'] === 'active') {
+                            // Free seats if any (call stored procedure if exists)
+                            $pdo->query("SET @reg_id = " . intval($reg_id));
+                            $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                        }
+                        // Delete registration
+                        $delRegStmt = $pdo->prepare("DELETE FROM registrations WHERE id = ?");
+                        $delRegStmt->execute([$reg_id]);
+                    }
+                    // Delete employee
+                    $delEmpStmt = $pdo->prepare("DELETE FROM employees WHERE id = ?");
+                    $delEmpStmt->execute([$emp_id]);
+                    // Log the deletion
+                    $adminUser = $_SESSION['admin_username'] ?? 'admin';
+                    $details = "Employee deleted: {$employee['emp_number']} - {$employee['full_name']} (all registrations and seats freed)";
+                    $logStmt = $pdo->prepare("INSERT INTO admin_activity_log (admin_user, action, target_type, target_id, details, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                    $logStmt->execute([
+                        $adminUser,
+                        'employee_deleted',
+                        'employee',
+                        $emp_id,
+                        $details,
+                        $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+                    ]);
+                    echo json_encode(['success' => true, 'message' => 'Employee and related data deleted successfully']);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Invalid employee ID']);
+                }
+                exit;
         }
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
@@ -1644,6 +1695,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="openEditEmployeeModal(${emp.id})">Edit</button>
                         <button class="btn btn-warning btn-sm" onclick="toggleEmployeeStatus(${emp.id}, ${emp.is_active})">${emp.is_active ? 'Deactivate' : 'Activate'}</button>
+                        ${emp.is_active == 0 ? `<button class="btn btn-danger btn-sm" onclick="deleteEmployeeAndCleanup(${emp.id})">Delete</button>` : ''}
                     </td>
                 </tr>`;
             });
@@ -1807,6 +1859,33 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 };
             }
         });
+
+        // Add this new function after renderEmployeesTable
+        function deleteEmployeeAndCleanup(empId) {
+            if (!confirm('Are you sure you want to permanently delete this employee?\n\nThis will remove all their registrations and free any seats they held. This action cannot be undone.')) {
+                return;
+            }
+            const formData = new FormData();
+            formData.append('action', 'delete_employee_cleanup');
+            formData.append('emp_id', empId);
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
+            fetch('admin.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Employee deleted successfully', 'success');
+                    loadEmployees();
+                } else {
+                    showToast('Error deleting employee: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error deleting employee', 'error');
+            });
+        }
     </script>
 </body>
 </html>
