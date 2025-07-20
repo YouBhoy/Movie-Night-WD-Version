@@ -1,6 +1,18 @@
 <?php
 require_once 'config.php';
 
+// CSRF and rate limit for admin API POST actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired CSRF token. Please refresh and try again.']);
+        exit;
+    }
+    if (!checkAdminRateLimit($_POST['action'] ?? 'admin_api_action')) {
+        echo json_encode(['success' => false, 'message' => 'Rate limit exceeded. Please wait and try again.']);
+        exit;
+    }
+}
+
 // Simple admin authentication check
 session_start();
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {

@@ -24,6 +24,7 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
         if ($username === $admin_username && $password === $admin_password) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_username'] = $username;
+            secureAdminSession(); // Session hardening
             header('Location: admin.php');
             exit;
         } else {
@@ -41,6 +42,16 @@ if (isset($_GET['logout'])) {
 
 // Handle AJAX actions
 if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired CSRF token. Please refresh and try again.']);
+        exit;
+    }
+    if (!checkAdminRateLimit($_POST['action'] ?? 'admin_action')) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Rate limit exceeded. Please wait and try again.']);
+        exit;
+    }
     header('Content-Type: application/json');
     
     try {
@@ -868,6 +879,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             }
         }
     </style>
+    <meta name="admin-csrf-token" content="<?php echo generateAdminCSRFToken(); ?>">
 </head>
 <body>
     <div class="container">
@@ -879,9 +891,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 </div>
                 <nav style="display: flex; align-items: center; gap: 2rem;">
                     <ul class="tab-list" style="display: flex; gap: 1.5rem; list-style: none; margin: 0; padding: 0;">
-                        <li class="tab-item<?php if ($current_tab === 'dashboard') echo ' active'; ?>" style="font-weight: 600;">
-                            <a href="?tab=dashboard" style="color: <?php echo $current_tab === 'dashboard' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'dashboard' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Dashboard</a>
-                        </li>
+                        <!-- Removed Dashboard tab -->
                         <li class="tab-item<?php if ($current_tab === 'settings') echo ' active'; ?>" style="font-weight: 600;">
                             <a href="?tab=settings" style="color: <?php echo $current_tab === 'settings' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'settings' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Event Settings</a>
                         </li>
@@ -915,158 +925,14 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 <!-- Tab Content -->
                 <?php if ($current_tab === 'dashboard'): ?>
                     <!-- Dashboard Tab -->
-                    <div class="dashboard">
-                        <!-- Live Statistics -->
-                        <div class="stats-grid">
-                            <?php
-                            // Check if registrations table exists
-                            $tableExists = false;
-                            try {
-                                $checkStmt = $pdo->query("SHOW TABLES LIKE 'registrations'");
-                                $tableExists = $checkStmt->rowCount() > 0;
-                            } catch (Exception $e) {
-                                $tableExists = false;
-                            }
-                            
-                            if ($tableExists) {
-                                try {
-                                    $totalStmt = $pdo->query("SELECT COUNT(*) FROM registrations WHERE status = 'active'");
-                                    $totalRegistrations = $totalStmt->fetchColumn();
-                                    
-                                    $todayStmt = $pdo->query("SELECT COUNT(*) FROM registrations WHERE DATE(created_at) = CURDATE() AND status = 'active'");
-                                    $todayRegistrations = $todayStmt->fetchColumn();
-                                    
-                                                            $hall1Count = 0; // Hall assignment not available
-                        $hall2Count = 0; // Hall assignment not available
-                                } catch (Exception $e) {
-                                    $totalRegistrations = 0;
-                                    $todayRegistrations = 0;
-                                    $hall1Count = 0;
-                                    $hall2Count = 0;
-                                }
-                            } else {
-                                $totalRegistrations = 0;
-                                $todayRegistrations = 0;
-                                $hall1Count = 0;
-                                $hall2Count = 0;
-                            }
-                            ?>
-                            
-                            <div class="stat-card">
-                                <h3><i class="fas fa-users"></i> Total Registrations</h3>
-                                <div class="number"><?php echo $totalRegistrations; ?></div>
-                            </div>
-                            
-                            <div class="stat-card">
-                                <h3><i class="fas fa-calendar-day"></i> Today's Registrations</h3>
-                                <div class="number"><?php echo $todayRegistrations; ?></div>
-                            </div>
-                            
-                            <div class="stat-card">
-                                <h3><i class="fas fa-building"></i> Hall 1</h3>
-                                <div class="number"><?php echo $hall1Count; ?></div>
-                            </div>
-                            
-                            <div class="stat-card">
-                                <h3><i class="fas fa-building"></i> Hall 2</h3>
-                                <div class="number"><?php echo $hall2Count; ?></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Quick Actions -->
-                        <div class="actions">
-                            <a href="?tab=registrations" class="btn btn-primary">
-                                <i class="fas fa-users"></i> Manage Registrations
-                            </a>
-                            <!-- Removed Edit Seat Layout Button -->
-                            <a href="export.php" class="btn btn-secondary">
-                                <i class="fas fa-download"></i> Export Data
-                            </a>
-                            <a href="index.php" class="btn btn-secondary">
-                                <i class="fas fa-external-link-alt"></i> View Registration Form
-                            </a>
-                        </div>
-                        
-                        <!-- Recent Activity -->
-                        <div class="data-table">
-                            <div class="table-header">
-                                <i class="fas fa-clock"></i> Recent Registrations
-                            </div>
-                            <div class="table-content">
-                                <?php
-                                $registrations = [];
-                                if ($tableExists) {
-                                    try {
-                                        $stmt = $pdo->query("
-                                            SELECT 
-                                                r.id,
-                                                r.emp_number,
-                                                r.staff_name,
-                                                r.attendee_count,
-                                                r.selected_seats,
-                                                r.registration_date,
-                                                h.hall_name,
-                                                s.shift_name
-                                            FROM registrations r
-                                            JOIN cinema_halls h ON r.hall_id = h.id
-                                            JOIN shifts s ON r.shift_id = s.id
-                                            WHERE r.status = 'active' 
-                                            ORDER BY r.registration_date DESC 
-                                            LIMIT 10
-                                        ");
-                                        $registrations = $stmt->fetchAll();
-                                    } catch (Exception $e) {
-                                        $registrations = [];
-                                    }
-                                }
-                                if ($registrations): ?>
-                                    <table style="width:100%;border-collapse:collapse;">
-                                        <thead>
-                                            <tr style="font-weight:600;color:var(--secondary-color);background:var(--hover);">
-                                                <th style="padding:0.75rem 0.5rem;">Staff Name</th>
-                                                <th>Employee #</th>
-                                                <th>Cinema Hall</th>
-                                                <th>Shift</th>
-                                                <th>Attendees</th>
-                                                <th>Selected Seats</th>
-                                                <th>Registration Date</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                        <?php foreach ($registrations as $reg): ?>
-                                            <tr style="border-bottom:1px solid var(--border);">
-                                                <td style="padding:0.75rem 0.5rem;"><?php echo htmlspecialchars($reg['staff_name']); ?></td>
-                                                <td><?php echo htmlspecialchars($reg['emp_number']); ?></td>
-                                                <td><?php echo htmlspecialchars($reg['hall_name']); ?></td>
-                                                <td><?php echo htmlspecialchars($reg['shift_name']); ?></td>
-                                                <td><?php echo htmlspecialchars($reg['attendee_count'] ?? 1); ?></td>
-                                                <td><?php echo htmlspecialchars($reg['selected_seats'] ?? 'N/A'); ?></td>
-                                                <td><?php echo date('M j, Y g:i A', strtotime($reg['registration_date'])); ?></td>
-                                                <td>
-                                                    <button class="btn btn-danger btn-sm" onclick="deleteRegistration(<?php echo $reg['id']; ?>)">
-                                                        <i class="fas fa-trash"></i> Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                <?php else: ?>
-                                    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
-                                        <i class="fas fa-inbox"></i> No registrations found.
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                        <i class="fas fa-info-circle"></i> Dashboard is currently disabled.
                     </div>
-                    
                 <?php elseif ($current_tab === 'registrations'): ?>
                     <!-- Registrations Tab (Registration Management section removed) -->
                     <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
                         <i class="fas fa-info-circle"></i> Registration Management has been removed.
                     </div>
-                    
                 <?php elseif ($current_tab === 'seats'): ?>
                     <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
                         <i class="fas fa-info-circle"></i> Seat Layout Editor is currently disabled.
@@ -1186,6 +1052,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
+                                <input type="hidden" name="admin_csrf_token" value="<?php echo generateAdminCSRFToken(); ?>">
                             </div>
                             <button type="button" class="btn btn-primary" onclick="addNewEmployee()">
                                 <i class="fas fa-plus"></i> Add Employee
@@ -1315,6 +1182,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     </select>
                 </div>
                 <input type="hidden" id="edit_employee_id" name="id">
+                <input type="hidden" name="admin_csrf_token" value="<?php echo generateAdminCSRFToken(); ?>">
                 <div style="display:flex;gap:1rem;margin-top:1.5rem;">
                     <button type="submit" class="btn btn-primary">Save</button>
                     <button type="button" class="btn btn-secondary" onclick="closeEditEmployeeModal()">Cancel</button>
@@ -1604,6 +1472,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             formData.append('action', 'toggle_employee_status');
             formData.append('emp_id', empId);
             formData.append('current_status', currentStatus);
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
             
             fetch('admin.php', {
                 method: 'POST',
@@ -1654,6 +1523,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             formData.append('action', 'update_shift_name');
             formData.append('shift_id', shiftId);
             formData.append('shift_name', value);
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
             fetch('admin.php', {
                 method: 'POST',
                 body: formData
@@ -1680,6 +1550,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             formData.append('action', 'update_hall_name');
             formData.append('hall_id', hallId);
             formData.append('hall_name', value);
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
             fetch('admin.php', {
                 method: 'POST',
                 body: formData
@@ -1846,6 +1717,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             formData.append('action', 'toggle_employee_status');
             formData.append('emp_id', empId);
             formData.append('current_status', currentStatus);
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
             
             fetch('admin.php', {
                 method: 'POST',

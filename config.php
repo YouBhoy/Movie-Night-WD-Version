@@ -557,4 +557,62 @@ if (!is_dir($logsDir)) {
     mkdir($logsDir, 0755, true);
 }
 
+/**
+ * Admin CSRF Token Generation and Validation
+ */
+function generateAdminCSRFToken() {
+    if (!isset($_SESSION['admin_csrf_token']) || !isset($_SESSION['admin_csrf_token_time']) || 
+        (time() - $_SESSION['admin_csrf_token_time']) > CSRF_TOKEN_EXPIRY) {
+        $_SESSION['admin_csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['admin_csrf_token_time'] = time();
+    }
+    return $_SESSION['admin_csrf_token'];
+}
+
+function validateAdminCSRFToken($token) {
+    if (!isset($_SESSION['admin_csrf_token']) || !isset($_SESSION['admin_csrf_token_time'])) {
+        return false;
+    }
+    if ((time() - $_SESSION['admin_csrf_token_time']) > CSRF_TOKEN_EXPIRY) {
+        unset($_SESSION['admin_csrf_token'], $_SESSION['admin_csrf_token_time']);
+        return false;
+    }
+    return hash_equals($_SESSION['admin_csrf_token'], $token);
+}
+
+/**
+ * Admin Session Hardening
+ */
+function secureAdminSession() {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+        ini_set('session.cookie_httponly', 1);
+        ini_set('session.use_only_cookies', 1);
+        ini_set('session.cookie_secure', isset($_SERVER['HTTPS']));
+        ini_set('session.cookie_samesite', 'Strict');
+    }
+}
+
+/**
+ * Admin Rate Limiting
+ */
+function checkAdminRateLimit($action, $maxRequests = 10, $timeWindow = 60) {
+    $key = 'admin_rate_' . md5($action . ($_SESSION['admin_username'] ?? $_SERVER['REMOTE_ADDR']));
+    if (!isset($_SESSION[$key])) {
+        $_SESSION[$key] = ['count' => 1, 'start_time' => time()];
+        return true;
+    }
+    $currentTime = time();
+    $timeDiff = $currentTime - $_SESSION[$key]['start_time'];
+    if ($timeDiff > $timeWindow) {
+        $_SESSION[$key] = ['count' => 1, 'start_time' => $currentTime];
+        return true;
+    }
+    if ($_SESSION[$key]['count'] >= $maxRequests) {
+        return false;
+    }
+    $_SESSION[$key]['count']++;
+    return true;
+}
+
 ?>
