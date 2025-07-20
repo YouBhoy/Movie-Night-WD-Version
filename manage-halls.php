@@ -193,7 +193,7 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
                     <td><input type="number" value="<?= (int)$shift['seat_count'] ?>" min="1" class="shift-seats"></td>
                     <td>
                         <button class="btn btn-primary btn-save-shift">Save</button>
-                        <button class="btn btn-danger btn-delete-shift">Delete</button>
+                        <button class="btn btn-warning btn-deactivate-shift">Deactivate</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -434,6 +434,25 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
             body: new URLSearchParams({ action: 'deactivate_hall', hall_id: id, csrf_token: csrfToken })
+        })
+        .then(r=>r.json()).then(data => {
+            showMsg(data.message, data.success ? 'success' : 'error');
+            btn.disabled = false;
+            if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        });
+    };
+});
+// Update JS for deactivate shift button
+[...document.querySelectorAll('.btn-deactivate-shift')].forEach(btn => {
+    btn.onclick = function() {
+        const tr = btn.closest('tr');
+        const id = tr.getAttribute('data-shift-id');
+        const name = tr.querySelector('.shift-name').value.trim();
+        if (!confirm(`Are you sure you want to deactivate the shift: ${name}? This will hide it from active use but can be restored later.`)) return;
+        btn.disabled = true;
+        fetch('admin-hall-shift-api.php', {
+            method: 'POST',
+            body: new URLSearchParams({ action: 'deactivate_shift', shift_id: id, csrf_token: csrfToken })
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
