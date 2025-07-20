@@ -390,6 +390,43 @@ try {
             }
             break;
             
+        case 'delete_shift_full':
+            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+                echo json_encode(['success' => false, 'message' => 'Security validation failed']);
+                exit;
+            }
+            $shiftId = filter_var($_POST['shift_id'] ?? '', FILTER_VALIDATE_INT);
+            if (!$shiftId) {
+                echo json_encode(['success' => false, 'message' => 'Invalid shift ID']);
+                exit;
+            }
+            // Only allow if shift is deactivated
+            $checkStmt = $pdo->prepare("SELECT is_active, shift_name FROM shifts WHERE id = ?");
+            $checkStmt->execute([$shiftId]);
+            $shift = $checkStmt->fetch();
+            if (!$shift) {
+                echo json_encode(['success' => false, 'message' => 'Shift not found']);
+                exit;
+            }
+            if ($shift['is_active'] != 0) {
+                echo json_encode(['success' => false, 'message' => 'Shift must be deactivated before it can be deleted']);
+                exit;
+            }
+            // Reassign all employees with this shift to Unassigned (shift_id=0)
+            $pdo->prepare("UPDATE employees SET shift_id = 0 WHERE shift_id = ?")->execute([$shiftId]);
+            // Delete all seats for this shift
+            $pdo->prepare("DELETE FROM seats WHERE shift_id = ?")->execute([$shiftId]);
+            // Delete the shift
+            $delStmt = $pdo->prepare("DELETE FROM shifts WHERE id = ?");
+            $delStmt->execute([$shiftId]);
+            if ($delStmt->rowCount() > 0) {
+                logAdminActivity('delete_shift_full', 'shifts', $shiftId, [ 'shift_name' => $shift['shift_name'] ]);
+                echo json_encode(['success' => true, 'message' => 'Shift deleted and employees reassigned to Unassigned.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete shift.']);
+            }
+            break;
+            
         default:
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
             break;

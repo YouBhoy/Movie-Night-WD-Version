@@ -225,8 +225,8 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
                     </td>
                     <td><input type="number" value="<?= (int)$shift['seat_count'] ?>" min="1" class="shift-seats" disabled></td>
                     <td>
-                        <span class="deactivated-label">Deactivated</span>
                         <button class="btn btn-success btn-restore-shift">Restore</button>
+                        <button class="btn btn-danger btn-delete-shift-full">Delete</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -453,6 +453,25 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
             body: new URLSearchParams({ action: 'deactivate_shift', shift_id: id, csrf_token: csrfToken })
+        })
+        .then(r=>r.json()).then(data => {
+            showMsg(data.message, data.success ? 'success' : 'error');
+            btn.disabled = false;
+            if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        });
+    };
+});
+// Add JS for fully deleting a deactivated shift
+[...document.querySelectorAll('.btn-delete-shift-full')].forEach(btn => {
+    btn.onclick = function() {
+        const tr = btn.closest('tr');
+        const id = tr.getAttribute('data-shift-id');
+        const name = tr.querySelector('.shift-name').value.trim();
+        if (!confirm(`Are you sure you want to permanently delete the shift: ${name}?\n\nAll employees with this shift will be reassigned to Unassigned. This cannot be undone.`)) return;
+        btn.disabled = true;
+        fetch('admin-hall-shift-api.php', {
+            method: 'POST',
+            body: new URLSearchParams({ action: 'delete_shift_full', shift_id: id, csrf_token: csrfToken })
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
