@@ -143,7 +143,7 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
                     <td><input type="number" value="<?= (int)$hall['total_seats'] ?>" min="1" class="hall-seats"></td>
                     <td>
                         <button class="btn btn-primary btn-save-hall">Save</button>
-                        <button class="btn btn-danger btn-delete-hall">Delete</button>
+                        <button class="btn btn-warning btn-deactivate-hall">Deactivate</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -423,6 +423,25 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
     document.getElementById('shiftsActiveTable').style.display = 'none';
     document.getElementById('shiftsDeactivatedTable').style.display = '';
 };
+// Update JS for deactivate button
+[...document.querySelectorAll('.btn-deactivate-hall')].forEach(btn => {
+    btn.onclick = function() {
+        const tr = btn.closest('tr');
+        const id = tr.getAttribute('data-hall-id');
+        const name = tr.querySelector('.hall-name').value.trim();
+        if (!confirm(`Are you sure you want to deactivate the hall: ${name}? This will hide it from active use but can be restored later.`)) return;
+        btn.disabled = true;
+        fetch('admin-hall-shift-api.php', {
+            method: 'POST',
+            body: new URLSearchParams({ action: 'deactivate_hall', hall_id: id, csrf_token: csrfToken })
+        })
+        .then(r=>r.json()).then(data => {
+            showMsg(data.message, data.success ? 'success' : 'error');
+            btn.disabled = false;
+            if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        });
+    };
+});
 </script>
 </body>
 </html> 

@@ -2894,3 +2894,30 @@
 [20-Jul-2025 21:32:04 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 17
 [20-Jul-2025 21:32:39 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
 [20-Jul-2025 21:32:39 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-api.php on line 17
+[20-Jul-2025 21:38:07 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin.php on line 5
+[20-Jul-2025 21:38:23 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[20-Jul-2025 21:38:23 Asia/Singapore] API Action: deactivate_hall
+[20-Jul-2025 21:38:23 Asia/Singapore] GET params: Array
+(
+)
+
+[20-Jul-2025 21:38:23 Asia/Singapore] POST params: Array
+(
+    [action] => deactivate_hall
+    [hall_id] => 7
+    [csrf_token] => 81593fdfe02e3d89ae3a0b4cb142e5a92ed6b0a321e30393b71daf95deba33e3
+)
+
+[20-Jul-2025 21:38:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\cursor\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[20-Jul-2025 21:38:27 Asia/Singapore] API Action: restore_hall
+[20-Jul-2025 21:38:27 Asia/Singapore] GET params: Array
+(
+)
+
+[20-Jul-2025 21:38:27 Asia/Singapore] POST params: Array
+(
+    [action] => restore_hall
+    [hall_id] => 7
+    [csrf_token] => 81593fdfe02e3d89ae3a0b4cb142e5a92ed6b0a321e30393b71daf95deba33e3
+)
+
