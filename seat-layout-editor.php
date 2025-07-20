@@ -2,6 +2,19 @@
 session_start();
 require_once 'config.php';
 
+// Handle AJAX save_layout before any HTML output
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_layout') {
+    $pdo = getDBConnection();
+    $message = '';
+    $messageType = '';
+    handleSaveLayout($pdo);
+    echo json_encode([
+        'success' => ($messageType === 'success'),
+        'message' => $message
+    ]);
+    exit;
+}
+
 // Check if user is logged in as admin
 if (!isAdminLoggedIn()) {
     header('Location: admin-login.php');
@@ -21,9 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = sanitizeInput($_POST['action'] ?? '');
         
         switch ($action) {
-            case 'save_layout':
-                handleSaveLayout($pdo);
-                break;
             case 'delete_seat':
                 handleDeleteSeat($pdo);
                 break;
@@ -186,15 +196,18 @@ while ($row = $settingsStmt->fetch()) {
 }
 
 // Get halls and shifts for the form
+// Only show active halls
 $hallsStmt = $pdo->prepare("SELECT id, hall_name FROM cinema_halls WHERE is_active = 1 ORDER BY id");
 $hallsStmt->execute();
 $halls = $hallsStmt->fetchAll();
 
+// Only show active shifts
 $shiftsStmt = $pdo->prepare("SELECT id, shift_name, hall_id FROM shifts WHERE is_active = 1 ORDER BY hall_id, id");
 $shiftsStmt->execute();
 $shifts = $shiftsStmt->fetchAll();
 
-$csrfToken = generateCSRFToken();
+// Use admin CSRF token for admin actions
+$csrfToken = generateAdminCSRFToken();
 ?>
 
 <!DOCTYPE html>
@@ -679,8 +692,6 @@ $csrfToken = generateCSRFToken();
                         <input type="number" id="newSeatPosition" class="form-input" placeholder="Position" min="1" style="width: 100px;">
                         <select id="newSeatStatus" class="form-select" style="width: 120px;">
                             <option value="available">Available</option>
-                            <option value="blocked">Blocked</option>
-                            <option value="reserved">Reserved</option>
                         </select>
                         <button type="button" id="addSeatBtn" class="btn btn-primary">
                             <i class="fas fa-plus"></i> Add
@@ -725,14 +736,6 @@ $csrfToken = generateCSRFToken();
                 <div class="legend-item">
                     <div class="legend-color" style="background: #ef4444;"></div>
                     <span>Occupied</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #6b7280;"></div>
-                    <span>Blocked</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #f59e0b;"></div>
-                    <span>Reserved</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3);"></div>
@@ -902,8 +905,23 @@ $csrfToken = generateCSRFToken();
         let currentShiftId = null;
         let currentSeats = [];
         let gridSize = { rows: 10, cols: 10 }; // This variable is no longer used for grid size, but kept for potential future use or if other parts of the code rely on it.
-        let hasChanges = false;
+        let hasChanges = true;
         let selectedSeatId = null;
+
+        // Track selected seat IDs for multi-delete
+        let selectedSeatIds = [];
+
+        // Make toggleSeatSelection globally accessible
+        function toggleSeatSelection(event, seatId) {
+            event.stopPropagation();
+            const idx = selectedSeatIds.indexOf(String(seatId));
+            if (idx === -1) {
+                selectedSeatIds.push(String(seatId));
+            } else {
+                selectedSeatIds.splice(idx, 1);
+            }
+            renderSeatGrid();
+        }
 
         // DOM Elements
         const hallSelector = document.getElementById('hallSelector');
@@ -996,7 +1014,7 @@ $csrfToken = generateCSRFToken();
             fetch('admin-api.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=get_seat_layout&hall_id=${currentHallId}&shift_id=${currentShiftId}&csrf_token=${csrfToken}`
+                body: `action=get_seat_layout&hall_id=${currentHallId}&shift_id=${currentShiftId}&admin_csrf_token=${csrfToken}`
             })
             .then(response => response.json())
             .then(data => {
@@ -1056,11 +1074,11 @@ $csrfToken = generateCSRFToken();
                     if (seat) {
                         // Existing seat
                         html += `
-                            <div class="seat ${seat.status}${selectedSeatId == seat.id ? ' selected' : ''}" 
+                            <div class="seat ${seat.status}${selectedSeatIds.includes(String(seat.id)) ? ' selected' : ''}" 
                                  data-seat-id="${seat.id}" 
                                  data-row="${rowLetter}" 
                                  data-col="${col}"
-                                 onclick="selectSeat(event, '${seat.id}')">
+                                 onclick="toggleSeatSelection(event, '${seat.id}')">
                                 ${seat.seat_number}
                                 ${seat.status === 'reserved' ? '<span class="lock-icon" style="margin-left:4px; color:#ffd700;" title="Reserved"><i class="fas fa-lock"></i></span>' : ''}
                                 ${seat.status === 'blocked' ? '<span class="lock-icon" style="margin-left:4px; color:#6b7280;" title="Blocked"><i class="fas fa-ban"></i></span>' : ''}
@@ -1123,7 +1141,6 @@ $csrfToken = generateCSRFToken();
             const seat = currentSeats.find(s => s.id == seatId);
             if (!seat) return;
             event.stopPropagation();
-            console.log('deleteSeat called with seatId:', seatId, 'type:', typeof seatId);
             // If seat is a new (unsaved) seat, just remove from currentSeats
             if (String(seatId).startsWith('temp_')) {
                 currentSeats = currentSeats.filter(s => String(s.id) !== String(seatId));
@@ -1137,13 +1154,15 @@ $csrfToken = generateCSRFToken();
             fetch('seat-layout-editor.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=delete_seat&seat_id=${seatId}&csrf_token=${csrfToken}`
+                body: `action=delete_seat&seat_id=${seatId}&admin_csrf_token=${csrfToken}`
             })
             .then(response => response.text())
             .then(() => {
                 // Remove from current seats
                 currentSeats = currentSeats.filter(s => s.id != seatId);
                 renderSeatGrid();
+                hasChanges = true;
+                updateSaveButton();
             })
             .catch(error => {
                 console.error('Error deleting seat:', error);
@@ -1248,7 +1267,7 @@ $csrfToken = generateCSRFToken();
             formData.append('hall_id', currentHallId);
             formData.append('shift_id', currentShiftId);
             formData.append('seats', JSON.stringify(currentSeats));
-            formData.append('csrf_token', csrfToken);
+            formData.append('admin_csrf_token', csrfToken); // Use admin_csrf_token
 
             saveLayoutBtn.disabled = true;
             saveLayoutBtn.textContent = 'Saving...';
@@ -1257,12 +1276,14 @@ $csrfToken = generateCSRFToken();
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.text())
-            .then(() => {
-                // Show a success message (optional: use a modal or alert)
-                alert('Seat layout saved successfully!');
-                // Reload the seat layout to reflect any changes
-                loadSeatLayout();
+            .then(response => response.json()) // Parse as JSON
+            .then(data => {
+                if (data.success) {
+                    alert(data.message); // Or use showToast(data.message, 'success');
+                    loadSeatLayout();
+                } else {
+                    alert(data.message); // Or use showToast(data.message, 'error');
+                }
             })
             .catch(error => {
                 console.error('Error saving layout:', error);
@@ -1296,6 +1317,28 @@ $csrfToken = generateCSRFToken();
             seatGridActions.appendChild(addRowBtn);
             addRowBtn.addEventListener('click', function() {
                 addNewRow();
+            });
+        }
+
+        // Add button to delete selected seats
+        if (seatGridActions && !document.getElementById('deleteSelectedSeatsBtn')) {
+            const deleteSelectedBtn = document.createElement('button');
+            deleteSelectedBtn.type = 'button';
+            deleteSelectedBtn.id = 'deleteSelectedSeatsBtn';
+            deleteSelectedBtn.className = 'btn btn-danger';
+            deleteSelectedBtn.innerHTML = '<i class="fas fa-trash"></i> Delete Selected Seats';
+            seatGridActions.appendChild(deleteSelectedBtn);
+            deleteSelectedBtn.addEventListener('click', function() {
+                if (selectedSeatIds.length === 0) {
+                    alert('No seats selected.');
+                    return;
+                }
+                if (!confirm('Are you sure you want to delete the selected seats?')) return;
+                currentSeats = currentSeats.filter(seat => !selectedSeatIds.includes(String(seat.id)));
+                selectedSeatIds = [];
+                renderSeatGrid();
+                hasChanges = true;
+                updateSaveButton();
             });
         }
 

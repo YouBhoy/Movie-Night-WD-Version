@@ -384,6 +384,9 @@ try {
 
 // Get current tab
 $current_tab = $_GET['tab'] ?? 'dashboard';
+
+// After session_start()
+$adminCsrfToken = generateAdminCSRFToken();
 ?>
 
 <!DOCTYPE html>
@@ -930,7 +933,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             }
         }
     </style>
-    <meta name="admin-csrf-token" content="<?php echo generateAdminCSRFToken(); ?>">
+    <meta name="admin-csrf-token" content="<?php echo $adminCsrfToken; ?>">
 </head>
 <body>
     <div class="container">
@@ -1103,7 +1106,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <input type="hidden" name="admin_csrf_token" value="<?php echo generateAdminCSRFToken(); ?>">
+                                <input type="hidden" name="admin_csrf_token" value="<?php echo $adminCsrfToken; ?>">
                             </div>
                             <button type="button" class="btn btn-primary" onclick="addNewEmployee()">
                                 <i class="fas fa-plus"></i> Add Employee
@@ -1233,7 +1236,7 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     </select>
                 </div>
                 <input type="hidden" id="edit_employee_id" name="id">
-                <input type="hidden" name="admin_csrf_token" value="<?php echo generateAdminCSRFToken(); ?>">
+                <input type="hidden" name="admin_csrf_token" value="<?php echo $adminCsrfToken; ?>">
                 <div style="display:flex;gap:1rem;margin-top:1.5rem;">
                     <button type="submit" class="btn btn-primary">Save</button>
                     <button type="button" class="btn btn-secondary" onclick="closeEditEmployeeModal()">Cancel</button>
@@ -1466,11 +1469,11 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                 showToast('Please fill in all fields', 'error');
                 return;
             }
-            
+            const adminCsrfToken = document.querySelector('meta[name=admin-csrf-token]').content;
             fetch('admin.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=add_employee&emp_number=${encodeURIComponent(empNumber)}&full_name=${encodeURIComponent(fullName)}&shift_id=${encodeURIComponent(shiftId)}`
+                body: `action=add_employee&emp_number=${encodeURIComponent(empNumber)}&full_name=${encodeURIComponent(fullName)}&shift_id=${encodeURIComponent(shiftId)}&admin_csrf_token=${adminCsrfToken}`
             })
             .then(response => response.json())
             .then(data => {
@@ -1489,11 +1492,10 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
             if (!confirm('Are you sure you want to delete this employee?')) {
                 return;
             }
-            
             const formData = new FormData();
             formData.append('action', 'delete_employee');
             formData.append('emp_id', empId);
-            
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
             fetch('admin.php', {
                 method: 'POST',
                 body: formData
@@ -1815,48 +1817,27 @@ $current_tab = $_GET['tab'] ?? 'dashboard';
                     const full_name = document.getElementById('edit_full_name').value.trim();
                     const shift_id = document.getElementById('edit_shift_id').value;
                     if (!emp_number || !full_name || !shift_id) {
-                        showToast('All fields are required', 'error');
+                        showToast('Please fill in all fields', 'error');
                         return;
                     }
-                    // Check if shift or emp_number is changing and employee has active registration
-                    const emp = allEmployees.find(e => e.id == id);
-                    let needsConfirm = false;
-                    let confirmMsg = '';
-                    if (emp && emp.is_active == 1) {
-                        if (emp.shift_id != shift_id) {
-                            needsConfirm = true;
-                            confirmMsg = 'This employee has an active registration. Changing their shift will cancel their current registration and free their seat(s). Continue?';
-                        } else if (emp.emp_number !== emp_number) {
-                            needsConfirm = true;
-                            confirmMsg = 'This employee has an active registration. Changing their employee number will cancel their current registration and free their seat(s). Continue?';
+                    const adminCsrfToken = document.querySelector('meta[name=admin-csrf-token]').content;
+                    fetch('admin.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `action=update_employee&id=${id}&emp_number=${encodeURIComponent(emp_number)}&full_name=${encodeURIComponent(full_name)}&shift_id=${encodeURIComponent(shift_id)}&admin_csrf_token=${adminCsrfToken}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast('Employee updated successfully', 'success');
+                            closeEditEmployeeModal();
+                            loadEmployees();
+                        } else {
+                            showToast('Error updating employee: ' + data.message, 'error');
                         }
-                    }
-                    function doUpdate() {
-                        fetch('admin.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: `action=update_employee&id=${encodeURIComponent(id)}&emp_number=${encodeURIComponent(emp_number)}&full_name=${encodeURIComponent(full_name)}&shift_id=${encodeURIComponent(shift_id)}`
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                showToast(data.message, 'success');
-                                closeEditEmployeeModal();
-                                loadEmployees();
-                            } else {
-                                showToast('Error: ' + data.message, 'error');
-                            }
-                        })
-                        .catch(() => showToast('Error updating employee', 'error'));
-                    }
-                    if (needsConfirm) {
-                        if (confirm(confirmMsg)) {
-                            doUpdate();
-                        }
-                    } else {
-                        doUpdate();
-                    }
-                };
+                    })
+                    .catch(() => showToast('Error updating employee', 'error'));
+                }
             }
         });
 

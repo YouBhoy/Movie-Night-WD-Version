@@ -49,7 +49,7 @@ try {
             break;
             
         case 'add_hall':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -93,7 +93,7 @@ try {
             break;
             
         case 'update_hall':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -142,7 +142,7 @@ try {
             break;
             
         case 'deactivate_hall':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -165,7 +165,7 @@ try {
             break;
             
         case 'restore_hall':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -181,6 +181,41 @@ try {
                 echo json_encode(['success' => true, 'message' => 'Hall restored successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Hall not found or already active']);
+            }
+            break;
+            
+        case 'delete_hall_full':
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
+                echo json_encode(['success' => false, 'message' => 'Security validation failed']);
+                exit;
+            }
+            $hallId = filter_var($_POST['hall_id'] ?? '', FILTER_VALIDATE_INT);
+            if (!$hallId) {
+                echo json_encode(['success' => false, 'message' => 'Invalid hall ID']);
+                exit;
+            }
+            // Only allow if hall is deactivated
+            $checkStmt = $pdo->prepare("SELECT is_active, hall_name FROM cinema_halls WHERE id = ?");
+            $checkStmt->execute([$hallId]);
+            $hall = $checkStmt->fetch();
+            if (!$hall) {
+                echo json_encode(['success' => false, 'message' => 'Hall not found']);
+                exit;
+            }
+            if ($hall['is_active'] != 0) {
+                echo json_encode(['success' => false, 'message' => 'Hall must be deactivated before it can be deleted']);
+                exit;
+            }
+            // Delete all registrations for this hall
+            $pdo->prepare("DELETE FROM registrations WHERE hall_id = ?")->execute([$hallId]);
+            // Delete the hall
+            $delStmt = $pdo->prepare("DELETE FROM cinema_halls WHERE id = ?");
+            $delStmt->execute([$hallId]);
+            if ($delStmt->rowCount() > 0) {
+                logAdminActivity('delete_hall_full', 'cinema_halls', $hallId, [ 'hall_name' => $hall['hall_name'] ]);
+                echo json_encode(['success' => true, 'message' => 'Hall deleted and registrations removed.']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to delete hall.']);
             }
             break;
             
@@ -207,7 +242,7 @@ try {
             break;
             
         case 'add_shift':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -271,7 +306,7 @@ try {
             break;
             
         case 'update_shift':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -348,7 +383,7 @@ try {
             break;
             
         case 'deactivate_shift':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -371,7 +406,7 @@ try {
             break;
             
         case 'restore_shift':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }
@@ -391,7 +426,7 @@ try {
             break;
             
         case 'delete_shift_full':
-            if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
                 echo json_encode(['success' => false, 'message' => 'Security validation failed']);
                 exit;
             }

@@ -135,12 +135,12 @@ function exportEmployees($pdo, $output) {
     fputcsv($output, [
         'Employee Number',
         'Full Name',
-        'Department'
+        'Shift'
     ]);
     
     // Get all employees
     $stmt = $pdo->query("
-        SELECT emp_number, full_name, department
+        SELECT emp_number, full_name, shift
         FROM employees 
         ORDER BY full_name
     ");
@@ -149,7 +149,7 @@ function exportEmployees($pdo, $output) {
         fputcsv($output, [
             $row['emp_number'],
             $row['full_name'],
-            $row['department'] ?? ''
+            $row['shift'] ?? ''
         ]);
     }
 }

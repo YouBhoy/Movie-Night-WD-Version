@@ -349,7 +349,6 @@ function handleCheckEmployee($pdo) {
             'success' => true,
             'employee' => [
                 'name' => $employee['full_name'],
-                'department' => $employee['department'], // This line was not in the new_code, but should be kept
                 'shift' => $shiftName
             ]
         ]);

@@ -368,37 +368,6 @@ function isValidPhoneNumber($phone) {
 }
 
 /**
- * Map department to shift for hall assignment
- */
-function mapDepartmentToShift($department) {
-    // Default mapping - you can customize this based on your organization's structure
-    $department = strtolower(trim($department));
-    
-    // Map departments to shifts based on your business logic
-    switch ($department) {
-        case 'engineering':
-        case 'it':
-        case 'operations':
-            return 'Normal Shift';
-        case 'marketing':
-        case 'sales':
-        case 'hr':
-            return 'Crew A (Off/Rest Day)';
-        case 'finance':
-        case 'accounting':
-        case 'legal':
-            return 'Crew B (Off/Rest Day)';
-        case 'testing':
-        case 'quality':
-        case 'support':
-            return 'Crew C (Day Shift)';
-        default:
-            // Default to Normal Shift for unknown departments
-            return 'Normal Shift';
-    }
-}
-
-/**
  * File Upload Functions
  */
 function validateFileUpload($file, $allowedTypes = ['jpg', 'jpeg', 'png', 'gif'], $maxSize = 5242880) {

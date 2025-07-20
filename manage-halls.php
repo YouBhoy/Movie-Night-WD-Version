@@ -10,6 +10,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 
 $pdo = getDBConnection();
 $csrfToken = generateCSRFToken();
+$adminCsrfToken = generateAdminCSRFToken();
 
 // Get event settings
 $settingsStmt = $pdo->prepare("SELECT setting_key, setting_value FROM event_settings WHERE is_public = 1");
@@ -162,8 +163,8 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
                     <td><input type="text" value="<?= htmlspecialchars($hall['hall_name']) ?>" class="hall-name" disabled></td>
                     <td><input type="number" value="<?= (int)$hall['total_seats'] ?>" min="1" class="hall-seats" disabled></td>
                     <td>
-                        <span class="deactivated-label">Deactivated</span>
                         <button class="btn btn-success btn-restore-hall">Restore</button>
+                        <button class="btn btn-danger btn-delete-hall-full">Delete</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -242,7 +243,8 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
 .tab-badge { background: #ef4444; color: #fff; border-radius: 12px; padding: 0 8px; font-size: 0.85em; margin-left: 0.5em; }
 </style>
 <script>
-const csrfToken = "<?= $csrfToken ?>";
+// Make the admin CSRF token available to JS
+const adminCsrfToken = '<?= $adminCsrfToken ?>';
 function showMsg(msg, type) {
     const box = document.getElementById('msgBox');
     box.textContent = msg;
@@ -260,7 +262,8 @@ function showMsg(msg, type) {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'update_hall', hall_id: id, hall_name: name, total_seats: seats, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=update_hall&hall_id=${id}&hall_name=${encodeURIComponent(name)}&total_seats=${seats}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -277,7 +280,8 @@ addHallBtn.onclick = function() {
     addHallBtn.disabled = true;
     fetch('admin-hall-shift-api.php', {
         method: 'POST',
-        body: new URLSearchParams({ action: 'add_hall', hall_name: name, total_seats: seats, max_attendees_per_booking: 3, csrf_token: csrfToken })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=add_hall&hall_name=${encodeURIComponent(name)}&total_seats=${seats}&max_attendees_per_booking=${3}&admin_csrf_token=${adminCsrfToken}`
     })
     .then(r=>r.json()).then(data => {
         showMsg(data.message, data.success ? 'success' : 'error');
@@ -296,7 +300,8 @@ addHallBtn.onclick = function() {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'update_shift', shift_id: id, shift_name: name, hall_id: hallId, seat_count: seats, shift_code: name.replace(/\s+/g,'_').toUpperCase(), seat_prefix: '', start_time: '19:00:00', end_time: '22:00:00', csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=update_shift&shift_id=${id}&shift_name=${encodeURIComponent(name)}&hall_id=${hallId}&seat_count=${seats}&shift_code=${name.replace(/\s+/g,'_').toUpperCase()}&seat_prefix=&start_time=19:00:00&end_time=22:00:00&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -314,7 +319,8 @@ addShiftBtn.onclick = function() {
     addShiftBtn.disabled = true;
     fetch('admin-hall-shift-api.php', {
         method: 'POST',
-        body: new URLSearchParams({ action: 'add_shift', shift_name: name, hall_id: hallId, seat_count: seats, shift_code: name.replace(/\s+/g,'_').toUpperCase(), seat_prefix: '', start_time: '19:00:00', end_time: '22:00:00', csrf_token: csrfToken })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=add_shift&shift_name=${encodeURIComponent(name)}&hall_id=${hallId}&seat_count=${seats}&shift_code=${name.replace(/\s+/g,'_').toUpperCase()}&seat_prefix=&start_time=19:00:00&end_time=22:00:00&admin_csrf_token=${adminCsrfToken}`
     })
     .then(r=>r.json()).then(data => {
         showMsg(data.message, data.success ? 'success' : 'error');
@@ -332,7 +338,8 @@ addShiftBtn.onclick = function() {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'deactivate_hall', hall_id: id, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=deactivate_hall&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -351,7 +358,8 @@ function bindShiftDeleteButtons() {
             btn.disabled = true;
             fetch('admin-hall-shift-api.php', {
                 method: 'POST',
-                body: new URLSearchParams({ action: 'deactivate_shift', shift_id: id, csrf_token: csrfToken })
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=deactivate_shift&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
             })
             .then(r=>r.json()).then(data => {
                 showMsg(data.message, data.success ? 'success' : 'error');
@@ -371,7 +379,8 @@ bindShiftDeleteButtons();
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'restore_hall', hall_id: id, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=restore_hall&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -389,7 +398,8 @@ bindShiftDeleteButtons();
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'restore_shift', shift_id: id, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=restore_shift&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -433,7 +443,8 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'deactivate_hall', hall_id: id, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=deactivate_hall&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -452,7 +463,8 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'deactivate_shift', shift_id: id, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=deactivate_shift&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -471,7 +483,28 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'delete_shift_full', shift_id: id, csrf_token: csrfToken })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=delete_shift_full&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
+        })
+        .then(r=>r.json()).then(data => {
+            showMsg(data.message, data.success ? 'success' : 'error');
+            btn.disabled = false;
+            if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        });
+    };
+});
+// Add JS for fully deleting a deactivated hall
+[...document.querySelectorAll('.btn-delete-hall-full')].forEach(btn => {
+    btn.onclick = function() {
+        const tr = btn.closest('tr');
+        const id = tr.getAttribute('data-hall-id');
+        const name = tr.querySelector('.hall-name').value.trim();
+        if (!confirm(`Are you sure you want to permanently delete the hall: ${name}?\n\nAll registrations for this hall will be deleted. This cannot be undone.`)) return;
+        btn.disabled = true;
+        fetch('admin-hall-shift-api.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=delete_hall_full&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
