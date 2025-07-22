@@ -4,10 +4,6 @@ require_once 'config.php';
 // Simple admin authentication
 session_start();
 
-// Hardcoded admin credentials (simple and reliable)
-$admin_username = 'admin';
-$admin_password = 'admin123';
-
 // Check if already logged in
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     // User is logged in, show dashboard
@@ -21,7 +17,8 @@ if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
         
-        if ($username === $admin_username && $password === $admin_password) {
+        // Use the database-based adminLogin function
+        if (adminLogin($username, $password)) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_username'] = $username;
             secureAdminSession(); // Session hardening
@@ -383,7 +380,7 @@ try {
 }
 
 // Get current tab
-$current_tab = $_GET['tab'] ?? 'dashboard';
+$current_tab = $_GET['tab'] ?? 'settings';
 
 // After session_start()
 $adminCsrfToken = generateAdminCSRFToken();

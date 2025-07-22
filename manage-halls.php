@@ -124,11 +124,35 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
             margin-right: 0.5rem;
         }
     </style>
+    <style>
+    a.btn-secondary, .btn-secondary {
+      display: inline-block;
+      background: transparent;
+      color: #FFD700 !important;
+      border: 2px solid #FFD700;
+      border-radius: 8px;
+      padding: 0.5rem 1.25rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none !important;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      box-shadow: none;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    a.btn-secondary:hover, .btn-secondary:hover, a.btn-secondary:focus, .btn-secondary:focus {
+      background: #FFD700;
+      color: #1a1a1a !important;
+      box-shadow: 0 4px 16px rgba(255, 215, 0, 0.15);
+      text-decoration: none !important;
+    }
+    </style>
 </head>
 <body>
 <div class="container">
     <h1>Edit Cinema Halls & Shifts</h1>
-    <a href="admin-dashboard.php" class="btn btn-secondary" style="margin-bottom:2rem;">⬅️ Back to Dashboard</a>
+    <a href="admin-dashboard.php" class="btn btn-secondary">⬅️ Back to Dashboard</a>
     <div class="section">
         <h2 style="color:#ffd700;">Cinema Halls</h2>
         <div class="tab-nav">
