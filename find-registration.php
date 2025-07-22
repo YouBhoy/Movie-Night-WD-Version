@@ -5,42 +5,48 @@ $error = '';
 $registration = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $empNumber = strtoupper(trim($_POST['emp_number'] ?? ''));
-    
-    if (empty($empNumber)) {
-        $error = 'Please enter your employee number.';
+    // Rate limiting by IP address
+    $clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    if (!checkRateLimit($clientIP)) {
+        $error = 'Too many requests. Please try again later.';
     } else {
-        try {
-            $pdo = getDBConnection();
-            
-            // Check if employee exists
-            $stmt = $pdo->prepare("SELECT full_name FROM employees WHERE emp_number = ? AND is_active = 1");
-            $stmt->execute([$empNumber]);
-            $employee = $stmt->fetch();
-            
-            if (!$employee) {
-                $error = 'Employee not found. Please check your employee number.';
-            } else {
-                // Find registration
-                $stmt = $pdo->prepare("
-                    SELECT r.*, h.hall_name, s.shift_name 
-                    FROM registrations r
-                    LEFT JOIN cinema_halls h ON r.hall_id = h.id
-                    LEFT JOIN shifts s ON r.shift_id = s.id
-                    WHERE r.emp_number = ? AND r.status = 'active'
-                    ORDER BY r.created_at DESC
-                    LIMIT 1
-                ");
-                $stmt->execute([$empNumber]);
-                $registration = $stmt->fetch();
+        $empNumber = strtoupper(trim($_POST['emp_number'] ?? ''));
+        
+        if (empty($empNumber)) {
+            $error = 'Please enter your employee number.';
+        } else {
+            try {
+                $pdo = getDBConnection();
                 
-                if (!$registration) {
-                    $error = 'No active registration found for this employee.';
+                // Check if employee exists
+                $stmt = $pdo->prepare("SELECT full_name FROM employees WHERE emp_number = ? AND is_active = 1");
+                $stmt->execute([$empNumber]);
+                $employee = $stmt->fetch();
+                
+                if (!$employee) {
+                    $error = 'Employee not found. Please check your employee number.';
+                } else {
+                    // Find registration
+                    $stmt = $pdo->prepare("
+                        SELECT r.*, h.hall_name, s.shift_name 
+                        FROM registrations r
+                        LEFT JOIN cinema_halls h ON r.hall_id = h.id
+                        LEFT JOIN shifts s ON r.shift_id = s.id
+                        WHERE r.emp_number = ? AND r.status = 'active'
+                        ORDER BY r.created_at DESC
+                        LIMIT 1
+                    ");
+                    $stmt->execute([$empNumber]);
+                    $registration = $stmt->fetch();
+                    
+                    if (!$registration) {
+                        $error = 'No active registration found for this employee.';
+                    }
                 }
+            } catch (Exception $e) {
+                $error = 'An error occurred. Please try again.';
+                error_log("Error in find-registration: " . $e->getMessage());
             }
-        } catch (Exception $e) {
-            $error = 'An error occurred. Please try again.';
-            error_log("Error in find-registration: " . $e->getMessage());
         }
     }
 }
@@ -251,12 +257,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             letter-spacing: 0.01em;
         }
     </style>
+    <style>
+    a.btn-secondary, .btn-secondary {
+      display: inline-block;
+      background: transparent;
+      color: #FFD700 !important;
+      border: 2px solid #FFD700;
+      border-radius: 8px;
+      padding: 0.5rem 1.25rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      text-decoration: none !important;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      box-shadow: none;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    a.btn-secondary:hover, .btn-secondary:hover, a.btn-secondary:focus, .btn-secondary:focus {
+      background: #FFD700;
+      color: #1a1a1a !important;
+      box-shadow: 0 4px 16px rgba(255, 215, 0, 0.15);
+      text-decoration: none !important;
+    }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="find-registration-container">
             <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-                <a href="index.php" class="btn btn-secondary" style="min-width:unset; width:auto; padding:0.5rem 1.25rem; font-size:0.95rem;">
+                <a href="index.php" class="btn btn-secondary">
                     🔙 Back to Registration
                 </a>
             </div>
