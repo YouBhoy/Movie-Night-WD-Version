@@ -638,6 +638,59 @@ $csrfToken = generateAdminCSRFToken();
                 gap: 1rem;
             }
         }
+        @media (max-width: 480px) {
+            .container {
+                padding: 0.5rem;
+            }
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+                padding-bottom: 1rem;
+            }
+            .header h1 {
+                font-size: 1.3rem;
+                text-align: left;
+            }
+            .header-actions {
+                width: 100%;
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: stretch;
+            }
+            .controls-section {
+                padding: 1rem;
+            }
+            .form-row {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .form-group {
+                min-width: 0;
+            }
+            .seat-grid-container {
+                padding: 1rem;
+            }
+            .seat-grid {
+                gap: 0.25rem;
+            }
+            .seat-row {
+                gap: 0.25rem;
+            }
+            .row-label, .seat {
+                width: 32px;
+                height: 32px;
+                font-size: 0.7rem;
+            }
+            .legend {
+                flex-direction: column;
+                gap: 0.5rem;
+                padding: 0.5rem;
+            }
+            .legend-item {
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
