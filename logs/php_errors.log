@@ -3859,3 +3859,99 @@
     [admin_csrf_token] => 353982cc894b25d1429c7f6b55b6e68b3516eb6958f1d97e9602f52cd769af9b
 )
 
+[25-Jul-2025 19:04:22 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:04:24 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:04:24 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:35:59 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:36:37 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:36:40 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:36:40 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 558
+[25-Jul-2025 19:36:40 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 559
+[25-Jul-2025 19:36:40 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 560
+[25-Jul-2025 19:36:40 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 561
+[25-Jul-2025 19:36:40 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:36:50 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:36:50 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:37:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:41:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:25 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:56 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:57 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:58 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 540
+[25-Jul-2025 19:41:58 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 541
+[25-Jul-2025 19:41:58 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 542
+[25-Jul-2025 19:41:58 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 543
+[25-Jul-2025 19:41:58 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:59 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:41:59 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:42:08 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:45:16 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:45:16 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 540
+[25-Jul-2025 19:45:16 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 541
+[25-Jul-2025 19:45:16 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 542
+[25-Jul-2025 19:45:16 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 543
+[25-Jul-2025 19:45:16 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:47:49 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:47:51 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:08 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:14 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:15 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:20 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 540
+[25-Jul-2025 19:48:20 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 541
+[25-Jul-2025 19:48:20 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 542
+[25-Jul-2025 19:48:20 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 543
+[25-Jul-2025 19:48:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:22 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:22 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:48:24 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:29 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:32 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:36 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:36 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:48:37 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:38 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:38 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:40 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:41 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:42 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:48:43 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:43 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:43 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:48:44 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:44 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:44 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:48:45 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:45 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:52 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:53 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 540
+[25-Jul-2025 19:48:53 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 541
+[25-Jul-2025 19:48:53 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 542
+[25-Jul-2025 19:48:53 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 543
+[25-Jul-2025 19:48:53 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:48:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:50:49 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:00 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:02 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:02 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:09 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:09 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 540
+[25-Jul-2025 19:51:09 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 541
+[25-Jul-2025 19:51:09 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 542
+[25-Jul-2025 19:51:09 Asia/Singapore] [Warning] ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\Movie-Night-WD-Version\config.php on line 543
+[25-Jul-2025 19:51:09 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:10 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:17 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:51:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:51:20 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:21 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:51:21 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[25-Jul-2025 19:56:48 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[25-Jul-2025 19:56:48 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17

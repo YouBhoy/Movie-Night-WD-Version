@@ -335,6 +335,52 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                     echo json_encode(['success' => false, 'message' => 'Invalid employee ID']);
                 }
                 exit;
+            case 'add_admin':
+                if ($_SESSION['admin_role'] !== 'admin') { echo json_encode(['success'=>false,'message'=>'Unauthorized']); exit; }
+                $username = trim($_POST['new_admin_username'] ?? '');
+                $password = $_POST['new_admin_password'] ?? '';
+                $role = $_POST['new_admin_role'] ?? 'admin';
+                $is_active = isset($_POST['new_admin_active']) ? 1 : 0;
+                if (strlen($username) < 3 || strlen($password) < 8) { echo json_encode(['success'=>false,'message'=>'Username or password too short']); exit; }
+                $checkStmt = $pdo->prepare("SELECT id FROM admin_users WHERE username = ?");
+                $checkStmt->execute([$username]);
+                if ($checkStmt->fetch()) { echo json_encode(['success'=>false,'message'=>'Username already exists']); exit; }
+                $hash = password_hash($password, PASSWORD_BCRYPT);
+                $stmt = $pdo->prepare("INSERT INTO admin_users (username, password_hash, role, is_active) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$username, $hash, $role, $is_active]);
+                echo json_encode(['success'=>true,'message'=>'Admin added successfully']); exit;
+            case 'edit_admin':
+                if ($_SESSION['admin_role'] !== 'admin') { echo json_encode(['success'=>false,'message'=>'Unauthorized']); exit; }
+                $id = (int)($_POST['edit_admin_id'] ?? 0);
+                $username = trim($_POST['edit_admin_username'] ?? '');
+                $role = $_POST['edit_admin_role'] ?? 'admin';
+                $is_active = isset($_POST['edit_admin_active']) ? 1 : 0;
+                $password = $_POST['edit_admin_password'] ?? '';
+                if ($id <= 0 || strlen($username) < 3) { echo json_encode(['success'=>false,'message'=>'Invalid input']); exit; }
+                $checkStmt = $pdo->prepare("SELECT id FROM admin_users WHERE username = ? AND id != ?");
+                $checkStmt->execute([$username, $id]);
+                if ($checkStmt->fetch()) { echo json_encode(['success'=>false,'message'=>'Username already exists']); exit; }
+                if ($password) {
+                    if (strlen($password) < 8) { echo json_encode(['success'=>false,'message'=>'Password too short']); exit; }
+                    $hash = password_hash($password, PASSWORD_BCRYPT);
+                    $stmt = $pdo->prepare("UPDATE admin_users SET username=?, role=?, is_active=?, password_hash=? WHERE id=?");
+                    $stmt->execute([$username, $role, $is_active, $hash, $id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE admin_users SET username=?, role=?, is_active=? WHERE id=?");
+                    $stmt->execute([$username, $role, $is_active, $id]);
+                }
+                echo json_encode(['success'=>true,'message'=>'Admin updated successfully']); exit;
+            case 'delete_admin':
+                if ($_SESSION['admin_role'] !== 'admin') { echo json_encode(['success'=>false,'message'=>'Unauthorized']); exit; }
+                $id = (int)($_POST['delete_admin_id'] ?? 0);
+                // Prevent self-delete
+                $selfIdStmt = $pdo->prepare("SELECT id FROM admin_users WHERE username = ?");
+                $selfIdStmt->execute([$_SESSION['admin_username']]);
+                $selfId = $selfIdStmt->fetchColumn();
+                if ($id == $selfId) { echo json_encode(['success'=>false,'message'=>'You cannot delete your own account']); exit; }
+                $stmt = $pdo->prepare("DELETE FROM admin_users WHERE id = ?");
+                $stmt->execute([$id]);
+                echo json_encode(['success'=>true,'message'=>'Admin deleted successfully']); exit;
         }
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
@@ -952,6 +998,12 @@ $adminCsrfToken = generateAdminCSRFToken();
                         <li class="tab-item<?php if ($current_tab === 'export') echo ' active'; ?>" style="font-weight: 600;">
                             <a href="?tab=export" style="color: <?php echo $current_tab === 'export' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'export' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Export</a>
                         </li>
+                        <li class="tab-item<?php if (
+                            $current_tab === 'admins') echo ' active'; ?>" style="font-weight: 600;">
+                            <?php if ($_SESSION['admin_role'] === 'admin'): ?>
+                                <a href="?tab=admins" style="color: <?php echo $current_tab === 'admins' ? 'var(--secondary-color)' : 'var(--text-primary)'; ?>; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; background: <?php echo $current_tab === 'admins' ? 'var(--hover)' : 'transparent'; ?>; transition: background 0.2s;">Admin Users</a>
+                            <?php endif; ?>
+                        </li>
                     </ul>
                     <div style="display: flex; gap: 0.75rem; margin-left: 2rem;">
                         <a href="index.php" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px; padding: 0.5rem 1.25rem; font-weight: 600; text-decoration: none;">Back to Registration</a>
@@ -1169,6 +1221,100 @@ $adminCsrfToken = generateAdminCSRFToken();
                             </a>
                         </div>
                     </div>
+                <?php elseif ($current_tab === 'admins' && $_SESSION['admin_role'] === 'admin'): ?>
+                    <div class="form-section" style="background: var(--card); border-radius: 16px; box-shadow: 0 2px 16px 0 rgba(0,0,0,0.2); border: 1px solid var(--border);">
+                        <h2 style="color: var(--secondary-color); font-weight: 700; letter-spacing: 1px; margin-bottom: 1rem;"><i class="fas fa-users-cog"></i> Admin Users</h2>
+                        <p style="color: var(--text-muted);">Manage admin accounts. You cannot delete your own account.</p>
+                        <?php
+                        // Fetch all admin users
+                        $adminUsers = $pdo->query("SELECT id, username, role, is_active, last_login, created_at FROM admin_users ORDER BY id")->fetchAll();
+                        ?>
+                        <table style="width:100%; margin-bottom:2rem;">
+                            <tr style="color:var(--secondary-color); font-weight:600;"><th>Username</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
+                            <?php foreach ($adminUsers as $admin): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($admin['username']) ?></td>
+                                <td><?= htmlspecialchars(ucfirst($admin['role'])) ?></td>
+                                <td><?= $admin['is_active'] ? '<span class="status-badge status-success">Active</span>' : '<span class="status-badge status-danger">Inactive</span>' ?></td>
+                                <td><?= $admin['last_login'] ? htmlspecialchars($admin['last_login']) : 'Never' ?></td>
+                                <td>
+                                    <button class="btn btn-secondary btn-edit-admin" data-id="<?= $admin['id'] ?>" data-username="<?= htmlspecialchars($admin['username']) ?>" data-role="<?= $admin['role'] ?>" data-active="<?= $admin['is_active'] ?>">Edit</button>
+                                    <?php if ($admin['username'] !== $_SESSION['admin_username']): ?>
+                                        <button class="btn btn-danger btn-delete-admin" data-id="<?= $admin['id'] ?>" data-username="<?= htmlspecialchars($admin['username']) ?>">Delete</button>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </table>
+                        <h3 style="color:var(--secondary-color);">Add New Admin</h3>
+                        <form method="POST" id="addAdminForm" style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                            <input type="hidden" name="action" value="add_admin">
+                            <input type="hidden" name="admin_csrf_token" value="<?= htmlspecialchars($adminCsrfToken) ?>">
+                            <input type="text" name="new_admin_username" placeholder="Username" required style="padding:0.5rem; border-radius:6px;">
+                            <input type="password" name="new_admin_password" placeholder="Password" required style="padding:0.5rem; border-radius:6px;">
+                            <select name="new_admin_role" required style="padding:0.5rem; border-radius:6px;">
+                                <option value="admin">Admin</option>
+                                <option value="manager">Manager</option>
+                                <option value="viewer">Viewer</option>
+                            </select>
+                            <label style="color:var(--text-muted); font-size:0.95em;">
+                                <input type="checkbox" name="new_admin_active" value="1" checked> Active
+                            </label>
+                            <button type="submit" class="btn btn-primary">Add Admin</button>
+                        </form>
+                        <!-- Edit Admin Modal (hidden by default, shown via JS) -->
+                        <div id="editAdminModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+                            <div style="background:var(--card); padding:2rem; border-radius:12px; min-width:320px; max-width:90vw;">
+                                <h3 style="color:var(--secondary-color);">Edit Admin</h3>
+                                <form method="POST" id="editAdminForm" style="display:flex; flex-direction:column; gap:1rem;">
+                                    <input type="hidden" name="action" value="edit_admin">
+                                    <input type="hidden" name="admin_csrf_token" value="<?= htmlspecialchars($adminCsrfToken) ?>">
+                                    <input type="hidden" name="edit_admin_id" id="edit_admin_id">
+                                    <label>Username: <input type="text" name="edit_admin_username" id="edit_admin_username" required></label>
+                                    <label>Role:
+                                        <select name="edit_admin_role" id="edit_admin_role" required>
+                                            <option value="admin">Admin</option>
+                                            <option value="manager">Manager</option>
+                                            <option value="viewer">Viewer</option>
+                                        </select>
+                                    </label>
+                                    <label>Active: <input type="checkbox" name="edit_admin_active" id="edit_admin_active" value="1"></label>
+                                    <label>New Password (leave blank to keep current): <input type="password" name="edit_admin_password" id="edit_admin_password"></label>
+                                    <div style="display:flex; gap:1rem;">
+                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        <button type="button" class="btn btn-secondary" id="cancelEditAdmin">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                    // JS for edit/delete admin actions
+                    document.querySelectorAll('.btn-edit-admin').forEach(btn => {
+                        btn.onclick = function() {
+                            document.getElementById('editAdminModal').style.display = 'flex';
+                            document.getElementById('edit_admin_id').value = btn.dataset.id;
+                            document.getElementById('edit_admin_username').value = btn.dataset.username;
+                            document.getElementById('edit_admin_role').value = btn.dataset.role;
+                            document.getElementById('edit_admin_active').checked = btn.dataset.active == '1';
+                            document.getElementById('edit_admin_password').value = '';
+                        };
+                    });
+                    document.getElementById('cancelEditAdmin').onclick = function() {
+                        document.getElementById('editAdminModal').style.display = 'none';
+                    };
+                    document.querySelectorAll('.btn-delete-admin').forEach(btn => {
+                        btn.onclick = function() {
+                            if (!confirm('Are you sure you want to delete admin: ' + btn.dataset.username + '? This cannot be undone.')) return;
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.style.display = 'none';
+                            form.innerHTML = `<input type="hidden" name="action" value="delete_admin"><input type="hidden" name="admin_csrf_token" value="<?= htmlspecialchars($adminCsrfToken) ?>"><input type="hidden" name="delete_admin_id" value="${btn.dataset.id}">`;
+                            document.body.appendChild(form);
+                            form.submit();
+                        };
+                    });
+                    </script>
                 <?php endif; ?>
             <?php endif; ?>
             

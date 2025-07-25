@@ -180,25 +180,7 @@ function adminLogin($username, $password) {
                 
                 return true;
             }
-        } else {
-            // Fallback to hardcoded credentials (for development)
-            // These are pre-hashed passwords - DO NOT change these hashes
-            $validCredentials = [
-                'admin' => '$2y$10$g.EDUbvBbQk424b8eulqaOs3lEOpjIYHG4gPlOW1Q8GfuRGjuakWm', // admin123
-                'manager' => '$2y$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B77UdFm' // manager456
-            ];
-            
-            if (isset($validCredentials[$username]) && password_verify($password, $validCredentials[$username])) {
-                $_SESSION['admin_logged_in'] = true;
-                $_SESSION['admin_username'] = $username;
-                $_SESSION['admin_role'] = 'admin';
-                $_SESSION['admin_login_time'] = time();
-                
-                logSecurityEvent('admin_login_success', $username, 'low');
-                return true;
-            }
         }
-        
         // Log failed login attempt
         logSecurityEvent('admin_login_failed', $username, 'medium');
         return false;
