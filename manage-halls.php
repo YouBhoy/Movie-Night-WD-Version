@@ -147,60 +147,22 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
       box-shadow: 0 4px 16px rgba(255, 215, 0, 0.15);
       text-decoration: none !important;
     }
-    </style>
+    /* Move the @media block inside this <style> tag */
     @media (max-width: 480px) {
-        .container {
-            padding: 0.5rem;
-        }
-        h1 {
-            font-size: 1.3rem;
-        }
-        .section {
-            padding: 1rem;
-        }
-        .tab-nav {
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .add-row {
-            flex-direction: column;
-            gap: 0.5rem;
-            padding: 0.5rem;
-        }
-        table, thead, tbody, th, td, tr {
-            display: block;
-            width: 100%;
-        }
-        table {
-            overflow-x: auto;
-            border: none;
-        }
-        tr {
-            margin-bottom: 1rem;
-            border-bottom: 2px solid rgba(255,255,255,0.08);
-        }
-        th, td {
-            padding: 0.5rem 0.25rem;
-            font-size: 0.95rem;
-            text-align: left;
-        }
-        th {
-            background: none;
-            color: #ffd700;
-        }
-        td input[type="text"],
-        td input[type="number"] {
-            width: 100%;
-            font-size: 1rem;
-        }
-        .btn {
-            width: 100%;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
-            padding: 0.7rem 1rem;
-        }
+        .container { padding: 0.5rem; }
+        h1 { font-size: 1.3rem; }
+        .section { padding: 1rem; }
+        .tab-nav { flex-direction: column; gap: 0.5rem; }
+        .add-row { flex-direction: column; gap: 0.5rem; padding: 0.5rem; }
+        table, thead, tbody, th, td, tr { display: block; width: 100%; }
+        table { overflow-x: auto; border: none; }
+        tr { margin-bottom: 1rem; border-bottom: 2px solid rgba(255,255,255,0.08); }
+        th, td { padding: 0.5rem 0.25rem; font-size: 0.95rem; text-align: left; }
+        th { background: none; color: #ffd700; }
+        td input[type="text"], td input[type="number"] { width: 100%; font-size: 1rem; }
+        .btn { width: 100%; margin-bottom: 0.5rem; font-size: 1rem; padding: 0.7rem 1rem; }
     }
-</style>
+    </style>
 </head>
 <body>
 <div class="container">
