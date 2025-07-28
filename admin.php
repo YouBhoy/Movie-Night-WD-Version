@@ -1289,14 +1289,70 @@ $adminCsrfToken = generateAdminCSRFToken();
                     document.querySelectorAll('.btn-delete-admin').forEach(btn => {
                         btn.onclick = function() {
                             if (!confirm('Are you sure you want to delete admin: ' + btn.dataset.username + '? This cannot be undone.')) return;
-                            const form = document.createElement('form');
-                            form.method = 'POST';
-                            form.style.display = 'none';
-                            form.innerHTML = `<input type="hidden" name="action" value="delete_admin"><input type="hidden" name="admin_csrf_token" value="<?= htmlspecialchars($adminCsrfToken) ?>"><input type="hidden" name="delete_admin_id" value="${btn.dataset.id}">`;
-                            document.body.appendChild(form);
-                            form.submit();
+                            // AJAX delete
+                            const formData = new FormData();
+                            formData.append('action', 'delete_admin');
+                            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
+                            formData.append('delete_admin_id', btn.dataset.id);
+                            fetch('admin.php', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    showToast('Admin deleted successfully', 'success');
+                                    setTimeout(() => location.reload(), 1200);
+                                } else {
+                                    showToast(data.message || 'Error deleting admin', 'error');
+                                }
+                            })
+                            .catch(() => showToast('Error deleting admin', 'error'));
                         };
                     });
+                    </script>
+                    <script>
+                    // AJAX for Add Admin
+                    document.getElementById('addAdminForm').onsubmit = function(e) {
+                        e.preventDefault();
+                        const form = e.target;
+                        const formData = new FormData(form);
+                        fetch('admin.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast('Admin added successfully', 'success');
+                                setTimeout(() => location.reload(), 1200);
+                            } else {
+                                showToast(data.message || 'Error adding admin', 'error');
+                            }
+                        })
+                        .catch(() => showToast('Error adding admin', 'error'));
+                    };
+
+                    // AJAX for Edit Admin
+                    document.getElementById('editAdminForm').onsubmit = function(e) {
+                        e.preventDefault();
+                        const form = e.target;
+                        const formData = new FormData(form);
+                        fetch('admin.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                showToast('Admin updated successfully', 'success');
+                                setTimeout(() => location.reload(), 1200);
+                            } else {
+                                showToast(data.message || 'Error updating admin', 'error');
+                            }
+                        })
+                        .catch(() => showToast('Error updating admin', 'error'));
+                    };
                     </script>
                 <?php endif; ?>
             <?php endif; ?>
