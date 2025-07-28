@@ -4078,3 +4078,5 @@
 [28-Jul-2025 13:14:29 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
 [28-Jul-2025 13:17:29 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
 [28-Jul-2025 13:17:29 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17
+[28-Jul-2025 13:21:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[28-Jul-2025 13:21:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin-api.php on line 17

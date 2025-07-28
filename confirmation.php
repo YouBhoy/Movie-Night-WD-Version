@@ -121,6 +121,10 @@ unset($_SESSION['registration_data']);
     </div>
 
     <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
         .confirmation-container {
             max-width: 800px;
             margin: 2rem auto;
