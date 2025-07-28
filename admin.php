@@ -1082,24 +1082,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                                     </button>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label for="default_seat_count" style="color: var(--secondary-color); font-weight: 600;">🪑 Default Seat Count</label>
-                                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                    <input type="number" id="default_seat_count" name="default_seat_count" min="1" value="72" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
-                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('default_seat_count')">
-                                        <i class="fas fa-save"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="company_name" style="color: var(--secondary-color); font-weight: 600;">🏢 Company Name</label>
-                                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                    <input type="text" id="company_name" name="company_name" placeholder="Enter company name" value="Western Digital" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
-                                    <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('company_name')">
-                                        <i class="fas fa-save"></i>
-                                    </button>
-                                </div>
-                            </div>
+
                         </div>
                         <div style="margin-top: 2rem;">
                             <button type="button" class="btn btn-secondary" style="background: var(--hover); color: var(--text-primary); border-radius: 8px;" onclick="loadEventSettings()">
@@ -1440,6 +1423,7 @@ $adminCsrfToken = generateAdminCSRFToken();
             formData.append('action', 'update_event_setting');
             formData.append('setting_key', settingKey);
             formData.append('setting_value', value);
+            formData.append('admin_csrf_token', document.querySelector('meta[name=admin-csrf-token]').content);
             
             fetch('admin.php', {
                 method: 'POST',
@@ -1469,8 +1453,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                         if (settings.movie_time) document.getElementById('movie_time').value = settings.movie_time;
                         if (settings.venue_name) document.getElementById('venue_name').value = settings.venue_name;
                         if (settings.max_attendees) document.getElementById('max_attendees').value = settings.max_attendees;
-                        if (settings.default_seat_count) document.getElementById('default_seat_count').value = settings.default_seat_count;
-                        if (settings.company_name) document.getElementById('company_name').value = settings.company_name;
+
                         showToast('Settings loaded successfully', 'success');
                     } else {
                         showToast('Error loading settings: ' + data.message, 'error');

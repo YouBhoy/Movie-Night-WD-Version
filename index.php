@@ -21,6 +21,9 @@ while ($row = $settingsStmt->fetch()) {
     $settings[$row['setting_key']] = $row['setting_value'];
 }
 
+// Get max attendees setting from database, fallback to constant if not set
+$maxAttendees = getEventSetting('max_attendees', MAX_ATTENDEES_PER_BOOKING);
+
 // Check if registration is enabled
 $registrationEnabled = isRegistrationEnabled();
 
@@ -590,11 +593,11 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                             <label for="attendee_count" class="form-label">Number of Attendees *</label>
                             <select id="attendee_count" name="attendee_count" class="form-select" required>
                                 <option value="">Select number of attendees</option>
-                                <option value="1">1 person</option>
-                                <option value="2">2 people</option>
-                                <option value="3">3 people</option>
+                                <?php for ($i = 1; $i <= $maxAttendees; $i++): ?>
+                                    <option value="<?php echo $i; ?>"><?php echo $i; ?> <?php echo $i === 1 ? 'person' : 'people'; ?></option>
+                                <?php endfor; ?>
                             </select>
-                            <div class="form-help" id="attendee_help">Maximum 3 attendees per registration</div>
+                            <div class="form-help" id="attendee_help">Maximum <?php echo $maxAttendees; ?> attendees per registration</div>
                         </div>
 
                         <div class="form-group seat-selection-group" style="display: none;">
@@ -652,7 +655,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                             <li><strong>Employee-only registration</strong> - Only registered employees can participate</li>
                             <li>Enter your employee number to auto-fill your details</li>
                             <li>Each employee can register only once</li>
-                            <li>Maximum 3 attendees per registration (both halls)</li>
+                            <li>Maximum <?php echo $maxAttendees; ?> attendees per registration (both halls)</li>
                             <li><strong>Flexible seat selection with smart suggestions</strong></li>
                             <li>Cinema hall assigned automatically based on your shift</li>
                             <li>Please arrive 15 minutes before screening time</li>
@@ -697,7 +700,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                                         echo '<span>• ' . htmlspecialchars($shift['shift_name']) . '</span>';
                                     }
                                     ?>
-                                    <span>• Max 3 attendees</span>
+                                    <span>• Max <?php echo $maxAttendees; ?> attendees</span>
                                 </div>
                             </div>
                             <?php endforeach; ?>
@@ -861,7 +864,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         const shiftsData = <?php echo json_encode($shifts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         const hallsData = <?php echo json_encode($halls, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         const csrfToken = '<?php echo $csrfToken; ?>';
-        const MAX_ATTENDEES = <?php echo MAX_ATTENDEES_PER_BOOKING; ?>;
+        const MAX_ATTENDEES = <?php echo (int)$maxAttendees; ?>;
         const registrationEnabled = <?php echo $registrationEnabled ? 'true' : 'false'; ?>;
         
         // Registration state
@@ -934,7 +937,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                             <span class="hall-icon">${hallIcon}</span>
                             <div class="hall-details">
                                 <strong>${hallName}</strong>
-                                <p>Automatically assigned for ${shiftName} (Max 3 attendees)</p>
+                                <p>Automatically assigned for ${shiftName} (Max ${MAX_ATTENDEES} attendees)</p>
                             </div>
                         </div>
                     `;
@@ -1046,7 +1049,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                             <span class="hall-icon">${hallIcon}</span>
                             <div class="hall-details">
                                 <strong>${hallName}</strong>
-                                <p>Automatically assigned for ${shiftName} (Max 3 attendees)</p>
+                                <p>Automatically assigned for ${shiftName} (Max ${MAX_ATTENDEES} attendees)</p>
                             </div>
                         </div>
                     `;

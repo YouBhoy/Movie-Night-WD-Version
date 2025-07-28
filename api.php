@@ -158,8 +158,11 @@ function handleRegistration($pdo) {
             throw new Exception('Full name must be at least 2 characters');
         }
         
-        if (!$attendeeCount || $attendeeCount < 1 || $attendeeCount > 3) {
-            throw new Exception('Invalid attendee count. Maximum 3 attendees allowed.');
+        // Get max attendees setting from database
+        $maxAttendees = getEventSetting('max_attendees', MAX_ATTENDEES_PER_BOOKING);
+        
+        if (!$attendeeCount || $attendeeCount < 1 || $attendeeCount > $maxAttendees) {
+            throw new Exception('Invalid attendee count. Maximum ' . $maxAttendees . ' attendees allowed.');
         }
         
         if (!$hallId) {
