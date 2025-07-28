@@ -450,12 +450,13 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         }
         
         .gap-warning-btn.confirm {
-            background: #f59e0b;
-            color: #000;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .gap-warning-btn.confirm:hover {
-            background: #d97706;
+            background: rgba(255, 255, 255, 0.2);
         }
         
         .gap-warning-btn.cancel {
@@ -1262,13 +1263,10 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                 }
                 seatsByRow[seat.row_letter].push(parseInt(seat.seat_position));
             });
-            
             // Check each row for gaps
             for (const [row, positions] of Object.entries(seatsByRow)) {
                 if (positions.length < 2) continue;
-                
                 positions.sort((a, b) => a - b);
-                
                 // Check for single-seat gaps between selected seats
                 for (let i = 0; i < positions.length - 1; i++) {
                     const gap = positions[i + 1] - positions[i];
@@ -1280,7 +1278,6 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                             parseInt(s.seat_position) === gapPosition && 
                             s.status === 'available'
                         );
-                        
                         if (gapSeat) {
                             return {
                                 hasGap: true,
@@ -1289,8 +1286,40 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                         }
                     }
                 }
+                // --- New: Check for single-seat gap at the start of the block ---
+                const minPos = positions[0];
+                const beforePos = minPos - 1;
+                const beforeSeat = allSeats.find(s => 
+                    s.row_letter === row && 
+                    parseInt(s.seat_position) === beforePos && 
+                    s.status === 'available'
+                );
+                if (beforeSeat) {
+                    // Check that the seat after the gap is not also available (to avoid double warning)
+                    if (!positions.includes(beforePos)) {
+                        return {
+                            hasGap: true,
+                            message: `This selection would leave seat ${row}${beforePos} isolated at the start of the row. This may make it difficult for other guests to book. Are you sure you want to continue?`
+                        };
+                    }
+                }
+                // --- New: Check for single-seat gap at the end of the block ---
+                const maxPos = positions[positions.length - 1];
+                const afterPos = maxPos + 1;
+                const afterSeat = allSeats.find(s => 
+                    s.row_letter === row && 
+                    parseInt(s.seat_position) === afterPos && 
+                    s.status === 'available'
+                );
+                if (afterSeat) {
+                    if (!positions.includes(afterPos)) {
+                        return {
+                            hasGap: true,
+                            message: `This selection would leave seat ${row}${afterPos} isolated at the end of the row. This may make it difficult for other guests to book. Are you sure you want to continue?`
+                        };
+                    }
+                }
             }
-            
             return { hasGap: false };
         }
 
