@@ -318,7 +318,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
 }
         
         .non-adjacent-btn.confirm:hover {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.3);
         }
         
         .non-adjacent-btn.cancel {
@@ -457,7 +457,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         }
         
         .gap-warning-btn.confirm:hover {
-            background: #ffffff;
+            background: rgba(255, 255, 255, 0.3);
         }
         
         .gap-warning-btn.cancel {

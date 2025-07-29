@@ -362,10 +362,11 @@ $csrfToken = generateAdminCSRFToken();
             font-size: 0.9rem;
         }
 
-        .form-select:focus, .form-input:focus {
+        .form-select:focus, .form-input:focus, .form-select:hover {
             outline: none;
             border-color: #ffd700;
             box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         /* Modal Styles */
@@ -555,7 +556,7 @@ $csrfToken = generateAdminCSRFToken();
         }
 
         .seat-status-option:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .seat-status-option.available { color: #10b981; }
@@ -1867,4 +1868,4 @@ $csrfToken = generateAdminCSRFToken();
         }
     </style>
 </body>
-</html> 
+</html>

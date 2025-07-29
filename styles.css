@@ -283,11 +283,21 @@ body, .dark-theme {
 }
 
 .form-control:focus,
-.form-select:focus {
+.form-select:focus,
+.form-select:hover {
   outline: none;
   border-color: #ffd700;
   box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.1);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Dropdown options hover effect */
+select option:hover,
+select option:focus,
+select option:active,
+select option:checked {
+  background: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
 }
 
 .form-control::placeholder {

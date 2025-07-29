@@ -4206,3 +4206,10 @@
 [28-Jul-2025 20:02:49 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
 [28-Jul-2025 20:02:52 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
 [28-Jul-2025 20:02:52 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Movie-Night-WD-Version\admin.php on line 5
+[29-Jul-2025 18:41:48 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Trae\Movie-Night-WD-Version\admin-api.php on line 17
+[29-Jul-2025 18:41:50 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Trae\Movie-Night-WD-Version\admin.php on line 5
+[29-Jul-2025 18:41:53 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Trae\Movie-Night-WD-Version\admin-api.php on line 17
+[29-Jul-2025 18:41:57 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Trae\Movie-Night-WD-Version\admin.php on line 5
+[29-Jul-2025 18:51:23 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
+[29-Jul-2025 18:51:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Trae\Movie-Night-WD-Version\admin-api.php on line 17
+[29-Jul-2025 18:51:57 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Trae\Movie-Night-WD-Version\admin-api.php on line 17
