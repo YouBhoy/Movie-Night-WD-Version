@@ -42,127 +42,7 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
     <title>Edit Halls & Shifts</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        body {
-            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: #ffffff;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        h1 {
-            font-size: 2.2rem;
-            font-weight: 700;
-            color: #ffd700;
-            margin-bottom: 2rem;
-        }
-        .section {
-            background: rgba(0,0,0,0.3);
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1rem;
-        }
-        th, td {
-            padding: 0.75rem 0.5rem;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            text-align: left;
-        }
-        th {
-            color: #ffd700;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-        td input[type="text"],
-        td input[type="number"] {
-            width: 90%;
-            padding: 0.4rem 0.6rem;
-            border-radius: 6px;
-            border: 1px solid #ffd700;
-            background: #232946;
-            color: #fff;
-            font-size: 1rem;
-        }
-        .btn {
-            padding: 0.5rem 1.2rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1rem;
-        }
-        .btn-primary { background: #ffd700; color: #232946; }
-        .btn-primary:hover { background: #ffed4e; }
-        .btn-success { background: #10b981; color: #fff; }
-        .btn-success:hover { background: #059669; }
-        .btn-danger { background: #ef4444; color: #fff; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
-        .msg { margin: 1rem 0; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; }
-        .msg.success { background: #1e293b; color: #4ade80; border: 1px solid #4ade80; }
-        .msg.error { background: #1e293b; color: #f87171; border: 1px solid #f87171; }
-        .add-row { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-top: 1rem; }
-        .add-row input { margin-right: 0.5rem; }
-        .deactivated-row {
-            opacity: 0.5;
-            background: #2d3748;
-        }
-        .deactivated-label {
-            color: #f87171;
-            font-weight: bold;
-            margin-right: 0.5rem;
-        }
-    </style>
-    <style>
-    a.btn-secondary, .btn-secondary {
-      display: inline-block;
-      background: transparent;
-      color: #FFD700 !important;
-      border: 2px solid #FFD700;
-      border-radius: 8px;
-      padding: 0.5rem 1.25rem;
-      font-size: 1rem;
-      font-weight: 600;
-      text-align: center;
-      text-decoration: none !important;
-      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-      box-shadow: none;
-      cursor: pointer;
-      vertical-align: middle;
-    }
-    a.btn-secondary:hover, .btn-secondary:hover, a.btn-secondary:focus, .btn-secondary:focus {
-      background: #FFD700;
-      color: #1a1a1a !important;
-      box-shadow: 0 4px 16px rgba(255, 215, 0, 0.15);
-      text-decoration: none !important;
-    }
-    /* Move the @media block inside this <style> tag */
-    @media (max-width: 480px) {
-        .container { padding: 0.5rem; }
-        h1 { font-size: 1.3rem; }
-        .section { padding: 1rem; }
-        .tab-nav { flex-direction: column; gap: 0.5rem; }
-        .add-row { flex-direction: column; gap: 0.5rem; padding: 0.5rem; }
-        table, thead, tbody, th, td, tr { display: block; width: 100%; }
-        table { overflow-x: auto; border: none; }
-        tr { margin-bottom: 1rem; border-bottom: 2px solid rgba(255,255,255,0.08); }
-        th, td { padding: 0.5rem 0.25rem; font-size: 0.95rem; text-align: left; }
-        th { background: none; color: #ffd700; }
-        td input[type="text"], td input[type="number"] { width: 100%; font-size: 1rem; }
-        .btn { width: 100%; margin-bottom: 0.5rem; font-size: 1rem; padding: 0.7rem 1rem; }
-    }
-    </style>
+    <link rel="stylesheet" href="manage-halls.css">
 </head>
 <body>
 <div class="container">
@@ -176,17 +56,21 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
         </div>
         <div id="hallsActiveTable">
             <table>
-                <tr><th>Name</th><th>Seat Count</th><th>Actions</th></tr>
+                <thead>
+                    <tr><th>Name</th><th>Seat Count</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
                 <?php foreach ($activeHalls as $hall): ?>
                 <tr data-hall-id="<?= $hall['id'] ?>">
-                    <td><input type="text" value="<?= htmlspecialchars($hall['hall_name']) ?>" class="hall-name"></td>
-                    <td><input type="number" value="<?= (int)$hall['total_seats'] ?>" min="1" class="hall-seats"></td>
-                    <td>
+                    <td data-label="Name"><input type="text" value="<?= htmlspecialchars($hall['hall_name']) ?>" class="hall-name"></td>
+                    <td data-label="Seat Count"><input type="number" value="<?= (int)$hall['total_seats'] ?>" min="1" class="hall-seats"></td>
+                    <td data-label="Actions" class="actions-cell">
                         <button class="btn btn-primary btn-save-hall">Save</button>
                         <button class="btn btn-warning btn-deactivate-hall">Deactivate</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
+                </tbody>
             </table>
             <div class="add-row">
                 <input type="text" placeholder="New Hall Name" id="newHallName">
@@ -196,17 +80,21 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
         </div>
         <div id="hallsDeactivatedTable" style="display:none;">
             <table>
-                <tr><th>Name</th><th>Seat Count</th><th>Actions</th></tr>
+                <thead>
+                    <tr><th>Name</th><th>Seat Count</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
                 <?php foreach ($deactivatedHalls as $hall): ?>
                 <tr data-hall-id="<?= $hall['id'] ?>" class="deactivated-row">
-                    <td><input type="text" value="<?= htmlspecialchars($hall['hall_name']) ?>" class="hall-name" disabled></td>
-                    <td><input type="number" value="<?= (int)$hall['total_seats'] ?>" min="1" class="hall-seats" disabled></td>
-                    <td>
+                    <td data-label="Name"><input type="text" value="<?= htmlspecialchars($hall['hall_name']) ?>" class="hall-name" disabled></td>
+                    <td data-label="Seat Count"><input type="number" value="<?= (int)$hall['total_seats'] ?>" min="1" class="hall-seats" disabled></td>
+                    <td data-label="Actions" class="actions-cell">
                         <button class="btn btn-success btn-restore-hall">Restore</button>
                         <button class="btn btn-danger btn-delete-hall-full">Delete</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
     </div>
@@ -218,11 +106,14 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
         </div>
         <div id="shiftsActiveTable">
             <table>
-                <tr><th>Name</th><th>Hall</th><th>Seat Count</th><th>Actions</th></tr>
+                <thead>
+                    <tr><th>Name</th><th>Hall</th><th>Seat Count</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
                 <?php foreach ($activeShifts as $shift): ?>
                 <tr data-shift-id="<?= $shift['id'] ?>">
-                    <td><input type="text" value="<?= htmlspecialchars($shift['shift_name']) ?>" class="shift-name"></td>
-                    <td>
+                    <td data-label="Name"><input type="text" value="<?= htmlspecialchars($shift['shift_name']) ?>" class="shift-name"></td>
+                    <td data-label="Hall">
                         <select class="shift-hall">
                             <option value="0" <?= $shift['hall_id'] == 0 ? 'selected' : '' ?>>Unassigned</option>
                             <?php foreach ($halls as $hall): ?>
@@ -230,13 +121,14 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
                             <?php endforeach; ?>
                         </select>
                     </td>
-                    <td><input type="number" value="<?= (int)$shift['seat_count'] ?>" min="1" class="shift-seats"></td>
-                    <td>
+                    <td data-label="Seat Count"><input type="number" value="<?= (int)$shift['seat_count'] ?>" min="1" class="shift-seats"></td>
+                    <td data-label="Actions" class="actions-cell">
                         <button class="btn btn-primary btn-save-shift">Save</button>
                         <button class="btn btn-warning btn-deactivate-shift">Deactivate</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
+                </tbody>
             </table>
             <div class="add-row">
                 <input type="text" placeholder="New Shift Name" id="newShiftName">
@@ -251,11 +143,14 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
         </div>
         <div id="shiftsDeactivatedTable" style="display:none;">
             <table>
-                <tr><th>Name</th><th>Hall</th><th>Seat Count</th><th>Actions</th></tr>
+                <thead>
+                    <tr><th>Name</th><th>Hall</th><th>Seat Count</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
                 <?php foreach ($deactivatedShifts as $shift): ?>
                 <tr data-shift-id="<?= $shift['id'] ?>" class="deactivated-row">
-                    <td><input type="text" value="<?= htmlspecialchars($shift['shift_name']) ?>" class="shift-name" disabled></td>
-                    <td>
+                    <td data-label="Name"><input type="text" value="<?= htmlspecialchars($shift['shift_name']) ?>" class="shift-name" disabled></td>
+                    <td data-label="Hall">
                         <select class="shift-hall" disabled>
                             <option value="0" <?= $shift['hall_id'] == 0 ? 'selected' : '' ?>>Unassigned</option>
                             <?php foreach ($halls as $hall): ?>
@@ -263,24 +158,19 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
                             <?php endforeach; ?>
                         </select>
                     </td>
-                    <td><input type="number" value="<?= (int)$shift['seat_count'] ?>" min="1" class="shift-seats" disabled></td>
-                    <td>
+                    <td data-label="Seat Count"><input type="number" value="<?= (int)$shift['seat_count'] ?>" min="1" class="shift-seats" disabled></td>
+                    <td data-label="Actions" class="actions-cell">
                         <button class="btn btn-success btn-restore-shift">Restore</button>
                         <button class="btn btn-danger btn-delete-shift-full">Delete</button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
+                </tbody>
             </table>
         </div>
     </div>
     <div id="msgBox" class="msg" style="display:none;"></div>
 </div>
-<style>
-.tab-nav { display: flex; gap: 1rem; margin-bottom: 1rem; }
-.tab-btn { background: #232946; color: #ffd700; border: none; border-radius: 8px 8px 0 0; padding: 0.5rem 1.5rem; font-weight: 600; cursor: pointer; transition: background 0.2s; position: relative; }
-.tab-btn.active { background: #ffd700; color: #232946; }
-.tab-badge { background: #ef4444; color: #fff; border-radius: 12px; padding: 0 8px; font-size: 0.85em; margin-left: 0.5em; }
-</style>
 <script>
 // Make the admin CSRF token available to JS
 const adminCsrfToken = '<?= $adminCsrfToken ?>';
@@ -554,4 +444,4 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
 });
 </script>
 </body>
-</html> 
+</html>
