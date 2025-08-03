@@ -70,9 +70,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                 } catch (Exception $e) {
                     $pdo->rollBack();
-                    $message = "Error deleting registration: " . $e->getMessage();
+                    // Log the detailed error for debugging
+                    error_log("Admin Dashboard - Delete registration error: " . $e->getMessage());
+                    // Provide a generic error message to the user
+                    $message = "An unexpected error occurred while deleting the registration. Please try again.";
                     $messageType = "error";
-                    error_log("Delete registration error: " . $e->getMessage());
                 }
                 break;
 
@@ -99,9 +101,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = "Event settings updated successfully ✅";
                     $messageType = "success";
                 } catch (Exception $e) {
-                    $message = "Error updating settings";
+                    // Log the detailed error for debugging
+                    error_log("Admin Dashboard - Settings update error: " . $e->getMessage());
+                    // Provide a generic error message to the user
+                    $message = "An unexpected error occurred while updating settings. Please try again.";
                     $messageType = "error";
-                    error_log("Settings update error: " . $e->getMessage());
                 }
                 break;
         }

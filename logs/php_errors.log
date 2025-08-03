@@ -4273,3 +4273,156 @@
 [31-Jul-2025 21:17:05 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
 [31-Jul-2025 21:31:51 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
 [31-Jul-2025 22:11:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:38:33 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
+[01-Aug-2025 21:38:36 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:38:37 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:38:37 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:38:51 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:38:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:38:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:39:28 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[01-Aug-2025 21:39:28 Asia/Singapore] API Action: update_shift
+[01-Aug-2025 21:39:28 Asia/Singapore] GET params: Array
+(
+)
+
+[01-Aug-2025 21:39:28 Asia/Singapore] POST params: Array
+(
+    [action] => update_shift
+    [shift_id] => 1
+    [shift_name] => Normal Shift
+    [hall_id] => 2
+    [seat_count] => 72
+    [shift_code] => NORMAL_SHIFT
+    [seat_prefix] => 
+    [start_time] => 19:00:00
+    [end_time] => 22:00:00
+    [admin_csrf_token] => cc01e2e6091b39a5ff4b1d3b49e9e6fb3cff1e0ab497763006457c571a755b53
+)
+
+[01-Aug-2025 21:39:58 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[01-Aug-2025 21:39:58 Asia/Singapore] API Action: update_shift
+[01-Aug-2025 21:39:58 Asia/Singapore] GET params: Array
+(
+)
+
+[01-Aug-2025 21:39:58 Asia/Singapore] POST params: Array
+(
+    [action] => update_shift
+    [shift_id] => 10
+    [shift_name] => boy boy 2
+    [hall_id] => 1
+    [seat_count] => 72
+    [shift_code] => BOY_BOY_2
+    [seat_prefix] => 
+    [start_time] => 19:00:00
+    [end_time] => 22:00:00
+    [admin_csrf_token] => cc01e2e6091b39a5ff4b1d3b49e9e6fb3cff1e0ab497763006457c571a755b53
+)
+
+[01-Aug-2025 21:45:06 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
+[01-Aug-2025 21:45:25 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
+[01-Aug-2025 21:56:41 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[01-Aug-2025 21:56:41 Asia/Singapore] API Action: deactivate_hall
+[01-Aug-2025 21:56:41 Asia/Singapore] GET params: Array
+(
+)
+
+[01-Aug-2025 21:56:41 Asia/Singapore] POST params: Array
+(
+    [action] => deactivate_hall
+    [hall_id] => 9
+    [admin_csrf_token] => 5668b99807a5bfd317c4430d128b54e43bcf7fb8832b05e1bbc92ae9238bb6eb
+)
+
+[01-Aug-2025 21:56:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[01-Aug-2025 21:56:54 Asia/Singapore] API Action: restore_hall
+[01-Aug-2025 21:56:54 Asia/Singapore] GET params: Array
+(
+)
+
+[01-Aug-2025 21:56:54 Asia/Singapore] POST params: Array
+(
+    [action] => restore_hall
+    [hall_id] => 9
+    [admin_csrf_token] => 5668b99807a5bfd317c4430d128b54e43bcf7fb8832b05e1bbc92ae9238bb6eb
+)
+
+[01-Aug-2025 21:57:06 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[01-Aug-2025 21:57:06 Asia/Singapore] API Action: update_shift
+[01-Aug-2025 21:57:06 Asia/Singapore] GET params: Array
+(
+)
+
+[01-Aug-2025 21:57:06 Asia/Singapore] POST params: Array
+(
+    [action] => update_shift
+    [shift_id] => 9
+    [shift_name] => boy boy
+    [hall_id] => 9
+    [seat_count] => 72
+    [shift_code] => BOY_BOY
+    [seat_prefix] => 
+    [start_time] => 19:00:00
+    [end_time] => 22:00:00
+    [admin_csrf_token] => 5668b99807a5bfd317c4430d128b54e43bcf7fb8832b05e1bbc92ae9238bb6eb
+)
+
+[01-Aug-2025 21:57:13 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[01-Aug-2025 21:57:13 Asia/Singapore] API Action: deactivate_hall
+[01-Aug-2025 21:57:13 Asia/Singapore] GET params: Array
+(
+)
+
+[01-Aug-2025 21:57:13 Asia/Singapore] POST params: Array
+(
+    [action] => deactivate_hall
+    [hall_id] => 9
+    [admin_csrf_token] => 5668b99807a5bfd317c4430d128b54e43bcf7fb8832b05e1bbc92ae9238bb6eb
+)
+
+[01-Aug-2025 21:57:50 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:58:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:58:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:58:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:58:44 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:58:57 Asia/Singapore] Seat creation error: Failed to create seats for this hall and shift combination
+[01-Aug-2025 21:58:57 Asia/Singapore] Seat loading error: Failed to initialize seats: Failed to create seats for this hall and shift combination
+[01-Aug-2025 21:58:57 Asia/Singapore] API Error: Failed to load seats: Failed to initialize seats: Failed to create seats for this hall and shift combination
+[01-Aug-2025 21:59:15 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:59:26 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 21:59:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 21:59:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 22:00:01 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 22:08:52 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:08:53 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:08:55 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:08:56 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:09:23 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:09:23 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:09:26 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:09:26 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:09:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:09:27 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:09:29 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:09:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:09:30 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17
+[01-Aug-2025 22:09:31 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:20:12 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:20:13 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\export.php on line 5
+[01-Aug-2025 22:37:18 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:37:22 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:37:25 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[01-Aug-2025 22:37:54 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin.php on line 5
+[03-Aug-2025 20:51:51 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-hall-shift-api.php on line 5
+[03-Aug-2025 20:51:51 Asia/Singapore] API Action: 
+[03-Aug-2025 20:51:51 Asia/Singapore] GET params: Array
+(
+)
+
+[03-Aug-2025 20:51:51 Asia/Singapore] POST params: Array
+(
+)
+
+[03-Aug-2025 20:52:00 Asia/Singapore] Activity Log: admin_login - Admin login successful - User: admin
+[03-Aug-2025 20:52:04 Asia/Singapore] [Notice] session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\Clean-up\Movie-Night-WD-Version\admin-api.php on line 17

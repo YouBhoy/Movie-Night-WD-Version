@@ -468,6 +468,9 @@ try {
     }
     
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
+    // Log the detailed error for debugging
+    error_log("Admin Hall/Shift API Error: " . $e->getMessage());
+    // Provide a generic error message to the user
+    echo json_encode(['success' => false, 'message' => 'An unexpected error occurred. Please try again.']);
 }
 ?> 

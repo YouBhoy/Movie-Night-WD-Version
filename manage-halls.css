@@ -76,14 +76,14 @@ td select {
     text-align: center;
 }
 
-.btn-primary { background: #ffd700; color: #232946; }
-.btn-primary:hover { background: #ffed4e; }
-.btn-success { background: #10b981; color: #fff; }
-.btn-success:hover { background: #059669; }
+.btn-primary { background: #22c55e; color: #fff; }
+.btn-primary:hover { background: #16a34a; }
+.btn-success { background: #22c55e; color: #fff; }
+.btn-success:hover { background: #16a34a; }
 .btn-danger { background: #ef4444; color: #fff; }
 .btn-danger:hover { background: #dc2626; }
-.btn-warning { background: #f59e0b; color: #fff; }
-.btn-warning:hover { background: #d97706; }
+.btn-warning { background: #ef4444; color: #fff; }
+.btn-warning:hover { background: #dc2626; }
 .btn[disabled] { opacity: 0.6; cursor: not-allowed; }
 
 .msg { margin: 1rem 0; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; }

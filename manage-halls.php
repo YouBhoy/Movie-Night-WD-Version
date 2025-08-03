@@ -194,10 +194,19 @@ function showMsg(msg, type) {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=update_hall&hall_id=${id}&hall_name=${encodeURIComponent(name)}&total_seats=${seats}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to save hall. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Save hall error:', error);
         });
     };
 });
@@ -212,10 +221,19 @@ addHallBtn.onclick = function() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=add_hall&hall_name=${encodeURIComponent(name)}&total_seats=${seats}&max_attendees_per_booking=${3}&admin_csrf_token=${adminCsrfToken}`
     })
-    .then(r=>r.json()).then(data => {
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        return r.json();
+    })
+    .then(data => {
         showMsg(data.message, data.success ? 'success' : 'error');
         addHallBtn.disabled = false;
         if (data.success) setTimeout(()=>window.location.reload(), 1000);
+    })
+    .catch(error => {
+        showMsg('Network error: Unable to add hall. Please try again.', 'error');
+        addHallBtn.disabled = false;
+        console.error('Add hall error:', error);
     });
 };
 // Save shift
@@ -232,10 +250,19 @@ addHallBtn.onclick = function() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=update_shift&shift_id=${id}&shift_name=${encodeURIComponent(name)}&hall_id=${hallId}&seat_count=${seats}&shift_code=${name.replace(/\s+/g,'_').toUpperCase()}&seat_prefix=&start_time=19:00:00&end_time=22:00:00&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to save shift. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Save shift error:', error);
         });
     };
 });
@@ -251,10 +278,19 @@ addShiftBtn.onclick = function() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=add_shift&shift_name=${encodeURIComponent(name)}&hall_id=${hallId}&seat_count=${seats}&shift_code=${name.replace(/\s+/g,'_').toUpperCase()}&seat_prefix=&start_time=19:00:00&end_time=22:00:00&admin_csrf_token=${adminCsrfToken}`
     })
-    .then(r=>r.json()).then(data => {
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        return r.json();
+    })
+    .then(data => {
         showMsg(data.message, data.success ? 'success' : 'error');
         addShiftBtn.disabled = false;
         if (data.success) setTimeout(()=>window.location.reload(), 1000);
+    })
+    .catch(error => {
+        showMsg('Network error: Unable to add shift. Please try again.', 'error');
+        addShiftBtn.disabled = false;
+        console.error('Add shift error:', error);
     });
 };
 // Add JS for delete buttons
@@ -311,10 +347,19 @@ bindShiftDeleteButtons();
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=restore_hall&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to restore hall. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Restore hall error:', error);
         });
     };
 });
@@ -330,10 +375,19 @@ bindShiftDeleteButtons();
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=restore_shift&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to restore shift. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Restore shift error:', error);
         });
     };
 });
@@ -375,10 +429,19 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=deactivate_hall&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to deactivate hall. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Deactivate hall error:', error);
         });
     };
 });
@@ -395,10 +458,19 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=deactivate_shift&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to deactivate shift. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Deactivate shift error:', error);
         });
     };
 });
@@ -415,10 +487,19 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=delete_shift_full&shift_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to delete shift. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Delete shift error:', error);
         });
     };
 });
@@ -435,10 +516,19 @@ document.getElementById('tabShiftsDeactivated').onclick = function() {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=delete_hall_full&hall_id=${id}&admin_csrf_token=${adminCsrfToken}`
         })
-        .then(r=>r.json()).then(data => {
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
+        .then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
             btn.disabled = false;
             if (data.success) setTimeout(()=>window.location.reload(), 1000);
+        })
+        .catch(error => {
+            showMsg('Network error: Unable to delete hall. Please try again.', 'error');
+            btn.disabled = false;
+            console.error('Delete hall error:', error);
         });
     };
 });

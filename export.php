@@ -135,21 +135,32 @@ function exportEmployees($pdo, $output) {
     fputcsv($output, [
         'Employee Number',
         'Full Name',
-        'Shift'
+        'Shift Name',
+        'Status',
+        'Hall'
     ]);
     
-    // Get all employees
+    // Get all employees with shift and hall information
     $stmt = $pdo->query("
-        SELECT emp_number, full_name, shift
-        FROM employees 
-        ORDER BY full_name
+        SELECT 
+            e.emp_number,
+            e.full_name,
+            e.is_active,
+            COALESCE(s.shift_name, 'Unassigned') as shift_name,
+            COALESCE(h.hall_name, 'No Hall') as hall_name
+        FROM employees e
+        LEFT JOIN shifts s ON e.shift_id = s.id
+        LEFT JOIN cinema_halls h ON s.hall_id = h.id
+        ORDER BY e.full_name
     ");
     
     while ($row = $stmt->fetch()) {
         fputcsv($output, [
             $row['emp_number'],
             $row['full_name'],
-            $row['shift'] ?? ''
+            $row['shift_name'],
+            $row['is_active'] ? 'Active' : 'Inactive',
+            $row['hall_name']
         ]);
     }
 }
