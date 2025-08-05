@@ -902,6 +902,26 @@ $adminCsrfToken = generateAdminCSRFToken();
                 gap: 0.5rem;
                 align-items: stretch;
             }
+            
+            /* Mobile tab button responsiveness */
+            .tab-nav {
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+                padding: 0.5rem !important;
+            }
+            
+            .tab-btn {
+                width: 100% !important;
+                text-align: center !important;
+                padding: 0.75rem 1rem !important;
+            }
+            
+            /* Handle multiple tab groups on mobile */
+            .tab-nav + .tab-nav {
+                margin-left: 0 !important;
+                margin-top: 1rem;
+            }
+            
             .seat-grid {
                 grid-template-columns: repeat(5, 1fr);
             }
@@ -948,6 +968,16 @@ $adminCsrfToken = generateAdminCSRFToken();
                 gap: 0.25rem;
                 width: 100%;
             }
+            
+            /* Small mobile tab adjustments */
+            .tab-nav {
+                padding: 0.25rem !important;
+            }
+            
+            .tab-btn {
+                padding: 0.6rem 0.8rem !important;
+                font-size: 0.8rem !important;
+            }
             .actions {
                 flex-direction: column;
                 gap: 0.5rem;
@@ -974,6 +1004,62 @@ $adminCsrfToken = generateAdminCSRFToken();
                 width: 100%;
                 box-sizing: border-box;
             }
+        }
+        
+        /* Tab Navigation Styles */
+        .tab-nav {
+            display: flex;
+            gap: 0.25rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 0.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .tab-btn.active {
+            background: var(--secondary-color);
+            color: #1a1a1a;
+            font-weight: 600;
+        }
+
+        .tab-btn.active:hover {
+            background: var(--secondary-color);
+            color: #1a1a1a;
+            transform: translateY(0);
+        }
+
+        /* Registration Filter Specific Styles */
+        #registrationFilter .tab-btn {
+            font-size: 0.8rem;
+            padding: 0.5rem 1rem;
+        }
+
+        #registrationFilter .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        #registrationFilter .tab-btn.active:hover {
+            background: var(--primary-color);
         }
     </style>
     <meta name="admin-csrf-token" content="<?php echo $adminCsrfToken; ?>">
@@ -1148,9 +1234,14 @@ $adminCsrfToken = generateAdminCSRFToken();
                         <!-- Employees List Area -->
                         <div style="margin-bottom: 1rem;">
                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                                <div class="tab-nav" id="employeeTabNav" style="display: flex; gap: 0.5rem;">
+                                <div class="tab-nav" id="employeeTabNav">
                                     <button class="tab-btn active" id="tabActiveEmployees">Active Employees</button>
                                     <button class="tab-btn" id="tabDeactivatedEmployees">Deactivated Employees</button>
+                                </div>
+                                <div class="tab-nav" id="registrationFilter" style="margin-left: 2rem;">
+                                    <button class="tab-btn active" id="filterAll">All</button>
+                                    <button class="tab-btn" id="filterRegistered">Has Registration</button>
+                                    <button class="tab-btn" id="filterNotRegistered">Not Registered</button>
                                 </div>
                                 <input type="text" id="employeeSearchInput" class="search-input" placeholder="Search by Employee Number..." style="max-width: 300px; margin-left: 1rem;">
                             </div>
@@ -1438,6 +1529,7 @@ $adminCsrfToken = generateAdminCSRFToken();
         let allShifts = [];
         let allEmployees = [];
         let showActiveEmployees = true;
+        let registrationFilter = 'all'; // 'all', 'registered', 'not_registered'
         let editingEmployee = null;
 
         // On page load, set up hall and shift selectors
@@ -1840,7 +1932,19 @@ $adminCsrfToken = generateAdminCSRFToken();
         // Get filtered employees based on tab and search
         function getFilteredEmployees() {
             const searchInput = document.getElementById('employeeSearchInput');
+            
+            // First filter by active/inactive status
             let filtered = allEmployees.filter(emp => showActiveEmployees ? emp.is_active == 1 : emp.is_active == 0);
+            
+            // Then filter by registration status
+            if (registrationFilter === 'registered') {
+                filtered = filtered.filter(emp => emp.has_active_registration == 1);
+            } else if (registrationFilter === 'not_registered') {
+                filtered = filtered.filter(emp => emp.has_active_registration != 1);
+            }
+            // 'all' doesn't need additional filtering
+            
+            // Finally filter by search input
             if (searchInput && searchInput.value.trim()) {
                 const searchValue = searchInput.value.trim().toLowerCase();
                 filtered = filtered.filter(emp =>
@@ -1910,6 +2014,37 @@ $adminCsrfToken = generateAdminCSRFToken();
                     showActiveEmployees = false;
                     tabDeactivated.classList.add('active');
                     tabActive.classList.remove('active');
+                    renderEmployeesTable(getFilteredEmployees());
+                });
+            }
+
+            // Registration filter logic
+            const filterAll = document.getElementById('filterAll');
+            const filterRegistered = document.getElementById('filterRegistered');
+            const filterNotRegistered = document.getElementById('filterNotRegistered');
+            
+            if (filterAll && filterRegistered && filterNotRegistered) {
+                filterAll.addEventListener('click', function() {
+                    registrationFilter = 'all';
+                    filterAll.classList.add('active');
+                    filterRegistered.classList.remove('active');
+                    filterNotRegistered.classList.remove('active');
+                    renderEmployeesTable(getFilteredEmployees());
+                });
+                
+                filterRegistered.addEventListener('click', function() {
+                    registrationFilter = 'registered';
+                    filterRegistered.classList.add('active');
+                    filterAll.classList.remove('active');
+                    filterNotRegistered.classList.remove('active');
+                    renderEmployeesTable(getFilteredEmployees());
+                });
+                
+                filterNotRegistered.addEventListener('click', function() {
+                    registrationFilter = 'not_registered';
+                    filterNotRegistered.classList.add('active');
+                    filterAll.classList.remove('active');
+                    filterRegistered.classList.remove('active');
                     renderEmployeesTable(getFilteredEmployees());
                 });
             }

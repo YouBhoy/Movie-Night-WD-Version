@@ -150,9 +150,47 @@ a.btn-secondary:hover, .btn-secondary:hover, a.btn-secondary:focus, .btn-seconda
   text-decoration: none !important;
 }
 
-.tab-nav { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.tab-btn { background: transparent; color: #a7a9be; border: none; border-bottom: 3px solid transparent; border-radius: 0; padding: 0.75rem 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-.tab-btn.active { color: #ffd700; border-bottom-color: #ffd700; }
+/* Tab Navigation Styles - Clean */
+.section .tab-nav {
+    display: flex;
+    gap: 0.25rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.section .tab-nav .tab-btn {
+    background: transparent;
+    border: none;
+    color: #a7a9be;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.section .tab-nav .tab-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.section .tab-nav .tab-btn.active {
+    background: #ffd700;
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+.section .tab-nav .tab-btn.active:hover {
+    background: #ffd700;
+    color: #1a1a1a;
+    transform: translateY(0);
+}
 .tab-badge { background: #ef4444; color: #fff; border-radius: 12px; padding: 2px 8px; font-size: 0.8em; margin-left: 0.5em; }
 
 @media (min-width: 769px) {
@@ -165,6 +203,20 @@ a.btn-secondary:hover, .btn-secondary:hover, a.btn-secondary:focus, .btn-seconda
     .container { padding: 1rem; }
     h1 { font-size: 1.8rem; }
     .section { padding: 1.5rem; }
+
+    /* Mobile-friendly tab buttons */
+    .section .tab-nav {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .section .tab-nav .tab-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
 
     table, tbody, tr, td {
         display: block;
@@ -229,6 +281,16 @@ a.btn-secondary:hover, .btn-secondary:hover, a.btn-secondary:focus, .btn-seconda
     .container { padding: 0.5rem; }
     h1 { font-size: 1.5rem; }
     .section { padding: 1rem; }
+
+    /* Smaller mobile tab buttons */
+    .section .tab-nav {
+        padding: 0.25rem;
+    }
+
+    .section .tab-nav .tab-btn {
+        padding: 0.6rem 0.8rem;
+        font-size: 0.85rem;
+    }
 
     .actions-cell .btn {
         padding: 0.5rem 0.8rem;
