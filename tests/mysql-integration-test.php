@@ -1,6 +1,6 @@
 <?php
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
-require_once __DIR__ . '/../services/MysqlBookingRepository.php';
+require_once __DIR__ . '/../app/repositories/MysqlBookingRepository.php';
 // This suite only creates and changes its dedicated synthetic test database.
 function connection(): PDO {
     return new PDO('mysql:host=127.0.0.1;port=33079;dbname=movie_night_test', 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false]);
@@ -16,7 +16,7 @@ $server = new PDO('mysql:host=127.0.0.1;port=33079', 'root', '', [PDO::ATTR_ERRM
 $server->exec('DROP DATABASE IF EXISTS movie_night_test');
 $server->exec('CREATE DATABASE IF NOT EXISTS movie_night_test CHARACTER SET utf8mb4');
 $pdo = connection();
-foreach (explode(';', file_get_contents(__DIR__ . '/schema.sql')) as $sql) {
+foreach (explode(';', file_get_contents(__DIR__ . '/../database/schema.sql')) as $sql) {
     if (trim($sql) !== '') $pdo->exec($sql);
 }
 $pdo->exec("INSERT INTO cinema_halls (id,hall_name,max_attendees_per_booking,total_seats,is_active) VALUES (1,'Synthetic Hall',3,4,1)");
@@ -78,19 +78,19 @@ try {
 } catch (BookingValidationException $e) {}
 verify($pdo->query("SELECT status FROM seats WHERE seat_number='A1'")->fetchColumn() === 'available', 'Partial seat writes roll back in MySQL');
 
-function endpoint(string $file, array $post): array {
+function endpoint(string $file, array $post, string $method = 'POST'): array {
     $root = dirname(__DIR__); $runtime = $root . '/.test-runtime/sessions';
     if (!is_dir($runtime)) mkdir($runtime, 0700, true);
     $id = bin2hex(random_bytes(16));
     $post['admin_csrf_token'] = 'integration-token';
     $code = 'putenv("DB_HOST=127.0.0.1");putenv("DB_PORT=33079");putenv("DB_NAME=movie_night_test");'
         . 'session_save_path(' . var_export($runtime,true) . ');session_id(' . var_export($id,true) . ');'
-        . '$_SERVER["REQUEST_METHOD"]="POST";$_SERVER["REMOTE_ADDR"]="127.0.0.1";'
+        . '$_SERVER["REQUEST_METHOD"]=' . var_export($method,true) . ';$_SERVER["REMOTE_ADDR"]="127.0.0.1";'
         . 'putenv(' . var_export('APP_LOG_PATH=' . $root . '/.test-runtime/test-errors.log', true) . ');'
-        . 'require ' . var_export($root . '/config.php',true) . ';'
+        . 'require ' . var_export($root . '/app/bootstrap.php',true) . ';'
         . '$_SESSION["admin_logged_in"]=true;$_SESSION["admin_role"]="admin";$_SESSION["admin_username"]="test-admin";'
         . '$_SESSION["admin_csrf_token"]="integration-token";$_SESSION["admin_csrf_token_time"]=time();'
-        . '$_POST=' . var_export($post,true) . ';require ' . var_export($root . '/' . $file,true) . ';';
+        . ($method === 'GET' ? '$_GET=' : '$_POST=') . var_export($post,true) . ';require ' . var_export($root . '/public/' . $file,true) . ';';
     $proc = proc_open([PHP_BINARY,'-r',$code],[1=>['pipe','w'],2=>['pipe','w']],$pipes,$root);
     $output = stream_get_contents($pipes[1]);$error=stream_get_contents($pipes[2]);
     fclose($pipes[1]);fclose($pipes[2]);$exit=proc_close($proc);
@@ -100,6 +100,18 @@ function endpoint(string $file, array $post): array {
 }
 $booking = bookingService($pdo)->register(request('TEST001','A1'));
 $layout = ['action'=>'save_layout','hall_id'=>1,'shift_id'=>1,'seats'=>json_encode([['row_letter'=>'A','seat_position'=>1,'seat_number'=>'A1','status'=>'available']])];
+$page = endpoint('admin-api.php', ['action'=>'get_registrations', 'page'=>0], 'GET');
+verify($page['success'] && $page['page'] === 1 && count($page['registrations']) === 1, 'Admin pagination binds numeric limits and clamps negative pages');
+$stats = endpoint('admin-api.php', ['action'=>'get_statistics'], 'GET');
+verify($stats['success'] && (int)$stats['statistics']['hall1_count'] === 1, 'Hall statistics report actual active bookings');
+$search = endpoint('admin-api.php', ['action'=>'get_registrations', 'search'=>'no-match'], 'GET');
+verify($search['success'] && $search['registrations'] === [], 'Admin paginated search accepts string filters with numeric limits');
+$created = endpoint('admin-api.php', ['action'=>'add_employee', 'emp_number'=>'TEST003', 'full_name'=>'Test <Three>', 'shift_id'=>1]);
+verify($created['success'], 'Shared employee creation accepts names as text');
+$duplicate = endpoint('admin.php', ['action'=>'add_employee', 'emp_number'=>'TEST003', 'full_name'=>'Duplicate', 'shift_id'=>1]);
+verify(!$duplicate['success'] && str_contains($duplicate['message'], 'already exists'), 'Both employee creation routes enforce duplicate protection');
+$invalidShift = endpoint('admin-api.php', ['action'=>'add_employee', 'emp_number'=>'TEST004', 'full_name'=>'Invalid shift', 'shift_id'=>999]);
+verify(!$invalidShift['success'] && str_contains($invalidShift['message'], 'active shift'), 'Shared employee creation rejects invalid shifts');
 $result = endpoint('seat-layout-editor.php',$layout);
 verify(!$result['success'] && str_contains($result['message'],'active bookings'), 'Layout replacement rejects active bookings');
 verify($pdo->query("SELECT status FROM seats WHERE seat_number='A1'")->fetchColumn() === 'occupied', 'Rejected layout save preserves reservations');

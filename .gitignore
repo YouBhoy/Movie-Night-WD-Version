@@ -4,3 +4,11 @@
 
 # Windows-generated runtime cache
 %SystemDrive%/
+
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/sessions/*
+!/storage/sessions/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+!/public/uploads/.htaccess

@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const engine = require('../assets/seat-selection.js');
+const engine = require('../public/assets/js/seat-selection.js');
 let checks = 0;
 function check(actual, expected) { assert.deepEqual(actual,expected); checks++; }
 const seat = (row,position,extra={}) => ({id:row+position,seat_number:row+position,row_letter:row,seat_position:position,status:'available',...extra});
@@ -21,8 +21,8 @@ const blocked=seats.map(s=>s.seat_number==='A2'? {...s,status:'occupied'}:s);
 check(engine.blocks(blocked,3).some(block=>block.some(s=>s.seat_number==='A2')),false);
 check(engine.blocks([seat('A',1),seat('A',3)],2).length,0);
 check(engine.recommend([seat('A',1)],[],2).length,0);
-const source=fs.readFileSync(path.join(__dirname,'../index.php'),'utf8');
-const code=source.slice(source.indexOf('        function refreshSelection()'),source.indexOf('        function clearSeatSelections()'));
+const source=fs.readFileSync(path.join(__dirname,'../public/assets/js/index.js'),'utf8');
+const code=source.slice(source.indexOf('function refreshSelection()'),source.indexOf('function clearSeatSelections()'));
 const elements={};
 const context=vm.createContext({SeatSelection:engine,selectedSeats:[],allSeats:seats,pendingGapSeat:null,pendingWarning:null,pendingNonAdjacentSelection:false,selectionBeforeWarning:[],acceptedSeatWarnings:new Set(),recommendedSeats:[],attendeeCountSelect:{value:'3'},document:{getElementById:id=>elements[id] ||= {style:{},textContent:'',hidden:false},querySelectorAll:()=>[]},updateSeatDisplay(){},updateSelectedSeatsDisplay(){context.updateSeatRecommendation();},updateSubmitButtonState(){},showError(message){throw new Error(message);}});
 vm.runInContext(code,context);
@@ -51,7 +51,7 @@ context.confirmNonAdjacentSelection();
 check(context.pendingWarning,null);
 check(context.acceptedSeatWarnings.has('gap:A2'),true);
 async function availabilityChecks() {
-    const submission = source.slice(source.indexOf('        async function handleFormSubmission('), source.indexOf('        function validateForm('));
+    const submission = source.slice(source.indexOf('async function handleFormSubmission('), source.indexOf('function validateForm('));
     const requests = [];
     let errorMessage = '';
     Object.assign(context, {

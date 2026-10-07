@@ -1,0 +1,5 @@
+# Fallback protection when XAMPP serves the repository rather than public/.
+# Production virtual hosts should point their DocumentRoot directly at public/.
+RewriteEngine On
+RewriteRule ^$ public/ [R=302,L]
+RewriteRule ^(?!public(?:/|$)). - [F,L]

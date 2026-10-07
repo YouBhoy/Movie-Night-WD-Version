@@ -36,9 +36,9 @@ try {
     }
     if (!$ready) { throw 'Isolated MariaDB did not become ready.' }
     Invoke-Checked -Executable $phpPath -Arguments @((Join-Path $PSScriptRoot 'mysql-integration-test.php'))
-    $phpFiles = Get-ChildItem -LiteralPath $projectRoot -Filter '*.php' -File
-    $phpFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'services') -Filter '*.php' -File
-    $phpFiles += Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.php' -File
+    Invoke-Checked -Executable 'node' -Arguments @((Join-Path $PSScriptRoot 'seat-warnings-test.cjs'))
+    Invoke-Checked -Executable 'node' -Arguments @((Join-Path $PSScriptRoot 'admin-ui-test.cjs'))
+    $phpFiles = @('app', 'public', 'tests') | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $projectRoot $_) -Filter '*.php' -File -Recurse }
     foreach ($file in $phpFiles) { Invoke-Checked -Executable $phpPath -Arguments @('-l', $file.FullName) }
 } finally {
     if ($serverProcess -and !$serverProcess.HasExited) {

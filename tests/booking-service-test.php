@@ -1,6 +1,6 @@
 <?php
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
-require_once __DIR__ . '/../services/BookingService.php';
+require_once __DIR__ . '/../app/services/BookingService.php';
 
 final class MemoryBookings implements BookingRepository {
     public array $employees = ['WD001' => ['full_name' => 'Test Employee', 'is_active' => true, 'shift_id' => 1]];

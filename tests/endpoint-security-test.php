@@ -26,11 +26,11 @@ foreach ($cases as [$file, $method, $action, $loggedIn, $role, $expected]) {
     $code = 'session_save_path(' . var_export($runtime, true) . '); session_id(' . var_export($sessionId, true) . ');'
         . '$_SERVER["REQUEST_METHOD"]=' . var_export($method, true) . '; $_SERVER["REMOTE_ADDR"]="127.0.0.1";'
         . 'putenv(' . var_export('APP_LOG_PATH=' . $root . '/.test-runtime/test-errors.log', true) . ');'
-        . 'require ' . var_export($root . '/config.php', true) . ';'
+        . 'require ' . var_export($root . '/app/bootstrap.php', true) . ';'
         . '$_SESSION["admin_logged_in"]=' . var_export($loggedIn, true) . '; $_SESSION["admin_role"]=' . var_export($role, true) . ';'
         . '$_GET["action"]=' . var_export($action, true) . '; $_POST["action"]=' . var_export($action, true) . ';'
         . 'register_shutdown_function(function(){echo "\nSTATUS=" . http_response_code();});'
-        . 'require ' . var_export($root . '/' . $file, true) . ';';
+        . 'require ' . var_export($root . '/public/' . $file, true) . ';';
     $process = proc_open([PHP_BINARY, '-r', $code], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root);
     $output = stream_get_contents($pipes[1]); $errors = stream_get_contents($pipes[2]);
     fclose($pipes[1]); fclose($pipes[2]); $exit = proc_close($process);
