@@ -8,6 +8,7 @@
  */
 
 require_once 'config.php';
+requireAdminLogin();
 
 echo "<h1>Employee Deactivation & Seat Freeing Test</h1>";
 
@@ -28,9 +29,9 @@ try {
     }
     
     if (empty($missingTables)) {
-        echo "<p style='color: green;'>✅ All required tables exist</p>";
+        echo "<p style='color: green;'>[OK] All required tables exist</p>";
     } else {
-        echo "<p style='color: red;'>❌ Missing tables: " . implode(', ', $missingTables) . "</p>";
+        echo "<p style='color: red;'>[ERROR] Missing tables: " . implode(', ', $missingTables) . "</p>";
         exit;
     }
     
@@ -39,9 +40,9 @@ try {
     
     $stmt = $pdo->query("SHOW PROCEDURE STATUS WHERE Name = 'freeSeatsByRegistration'");
     if ($stmt->rowCount() > 0) {
-        echo "<p style='color: green;'>✅ freeSeatsByRegistration stored procedure exists</p>";
+        echo "<p style='color: green;'>[OK] freeSeatsByRegistration stored procedure exists</p>";
     } else {
-        echo "<p style='color: red;'>❌ freeSeatsByRegistration stored procedure not found</p>";
+        echo "<p style='color: red;'>[ERROR] freeSeatsByRegistration stored procedure not found</p>";
         exit;
     }
     
@@ -89,7 +90,7 @@ try {
     $employeesWithRegistrations = $stmt->fetchAll();
     
     if (empty($employeesWithRegistrations)) {
-        echo "<p style='color: orange;'>⚠️ No employees with active registrations found</p>";
+        echo "<p style='color: orange;'>[WARNING] No employees with active registrations found</p>";
     } else {
         echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
         echo "<tr><th>Employee #</th><th>Name</th><th>Status</th><th>Registration ID</th><th>Selected Seats</th><th>Hall</th><th>Shift</th></tr>";
@@ -117,7 +118,7 @@ try {
     echo "<h3>To test the functionality:</h3>";
     echo "<ol>";
     echo "<li>Go to <a href='admin.php?tab=employees' target='_blank'>Admin Panel > Employee Settings</a></li>";
-    echo "<li>Look for employees marked with 📋 'Has Registration'</li>";
+    echo "<li>Look for employees marked with  'Has Registration'</li>";
     echo "<li>Click 'Deactivate' on one of these employees</li>";
     echo "<li>Confirm the action in the dialog</li>";
     echo "<li>Check that:</li>";
@@ -149,7 +150,7 @@ try {
     $recentActivity = $stmt->fetchAll();
     
     if (empty($recentActivity)) {
-        echo "<p style='color: orange;'>⚠️ No recent employee activation/deactivation activity found</p>";
+        echo "<p style='color: orange;'>[WARNING] No recent employee activation/deactivation activity found</p>";
     } else {
         echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
         echo "<tr><th>Admin User</th><th>Action</th><th>Target</th><th>Details</th><th>Date</th></tr>";
@@ -167,7 +168,7 @@ try {
     }
     
 } catch (Exception $e) {
-    echo "<p style='color: red;'>❌ Error: " . $e->getMessage() . "</p>";
+    echo "<p style='color: red;'>[ERROR] Error: " . $e->getMessage() . "</p>";
 }
 
 echo "<hr>";

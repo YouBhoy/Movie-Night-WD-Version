@@ -92,6 +92,8 @@ $csrfToken = generateCSRFToken();
     <meta name="robots" content="noindex, nofollow">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body class="dark-theme">
     <div class="admin-login-container">
@@ -103,14 +105,14 @@ $csrfToken = generateCSRFToken();
             
             <?php if ($error): ?>
             <div class="error-message">
-                <span class="error-icon">⚠️</span>
+                <span class="error-icon"><i class="fas fa-triangle-exclamation ui-icon" aria-hidden="true"></i></span>
                 <?php echo sanitizeInput($error); ?>
             </div>
             <?php endif; ?>
             
             <?php if ($loginAttempts >= 3 && $loginAttempts < 5): ?>
             <div class="warning-message">
-                <span class="warning-icon">⚠️</span>
+                <span class="warning-icon"><i class="fas fa-triangle-exclamation ui-icon" aria-hidden="true"></i></span>
                 Warning: <?php echo (5 - $loginAttempts); ?> login attempts remaining before temporary lockout.
             </div>
             <?php endif; ?>
@@ -137,7 +139,7 @@ $csrfToken = generateCSRFToken();
             </form>
             
             <div class="login-footer">
-                <a href="index.php" class="back-link">← Back to Registration</a>
+                <a href="index.php" class="back-link"><i class="fas fa-arrow-left ui-icon" aria-hidden="true"></i> Back to Registration</a>
             </div>
         </div>
     </div>

@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'config.php';
 
 // Check if user is logged in as admin
@@ -9,7 +8,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 $pdo = getDBConnection();
-$csrfToken = generateCSRFToken();
+$csrfToken = generateAdminCSRFToken();
 
 // Get event settings
 $settingsStmt = $pdo->prepare("SELECT setting_key, setting_value FROM event_settings WHERE is_public = 1");
@@ -105,11 +104,12 @@ $shifts = $pdo->query("SELECT * FROM shifts WHERE is_active = 1 ORDER BY hall_id
         .add-row { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1rem; margin-top: 1rem; }
         .add-row input { margin-right: 0.5rem; }
     </style>
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body>
 <div class="container">
     <h1>Edit Cinema Halls & Shifts</h1>
-    <a href="admin-dashboard.php" class="btn btn-secondary" style="margin-bottom:2rem;">⬅️ Back to Dashboard</a>
+    <a href="admin-dashboard.php" class="btn btn-secondary" style="margin-bottom:2rem;"><i class="fas fa-arrow-left ui-icon" aria-hidden="true"></i> Back to Dashboard</a>
     <div class="section">
         <h2 style="color:#ffd700;">Cinema Halls</h2>
         <table>
@@ -183,7 +183,7 @@ function showMsg(msg, type) {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'update_hall', hall_id: id, hall_name: name, total_seats: seats, csrf_token: csrfToken })
+            body: new URLSearchParams({ action: 'update_hall', hall_id: id, hall_name: name, total_seats: seats, admin_csrf_token: csrfToken })
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -200,7 +200,7 @@ addHallBtn.onclick = function() {
     addHallBtn.disabled = true;
     fetch('admin-hall-shift-api.php', {
         method: 'POST',
-        body: new URLSearchParams({ action: 'add_hall', hall_name: name, total_seats: seats, max_attendees_per_booking: 3, csrf_token: csrfToken })
+        body: new URLSearchParams({ action: 'add_hall', hall_name: name, total_seats: seats, max_attendees_per_booking: 3, admin_csrf_token: csrfToken })
     })
     .then(r=>r.json()).then(data => {
         showMsg(data.message, data.success ? 'success' : 'error');
@@ -219,7 +219,7 @@ addHallBtn.onclick = function() {
         btn.disabled = true;
         fetch('admin-hall-shift-api.php', {
             method: 'POST',
-            body: new URLSearchParams({ action: 'update_shift', shift_id: id, shift_name: name, hall_id: hallId, seat_count: seats, shift_code: name.replace(/\s+/g,'_').toUpperCase(), seat_prefix: '', start_time: '19:00:00', end_time: '22:00:00', csrf_token: csrfToken })
+            body: new URLSearchParams({ action: 'update_shift', shift_id: id, shift_name: name, hall_id: hallId, seat_count: seats, shift_code: name.replace(/\s+/g,'_').toUpperCase(), seat_prefix: '', start_time: '19:00:00', end_time: '22:00:00', admin_csrf_token: csrfToken })
         })
         .then(r=>r.json()).then(data => {
             showMsg(data.message, data.success ? 'success' : 'error');
@@ -237,7 +237,7 @@ addShiftBtn.onclick = function() {
     addShiftBtn.disabled = true;
     fetch('admin-hall-shift-api.php', {
         method: 'POST',
-        body: new URLSearchParams({ action: 'add_shift', shift_name: name, hall_id: hallId, seat_count: seats, shift_code: name.replace(/\s+/g,'_').toUpperCase(), seat_prefix: '', start_time: '19:00:00', end_time: '22:00:00', csrf_token: csrfToken })
+        body: new URLSearchParams({ action: 'add_shift', shift_name: name, hall_id: hallId, seat_count: seats, shift_code: name.replace(/\s+/g,'_').toUpperCase(), seat_prefix: '', start_time: '19:00:00', end_time: '22:00:00', admin_csrf_token: csrfToken })
     })
     .then(r=>r.json()).then(data => {
         showMsg(data.message, data.success ? 'success' : 'error');

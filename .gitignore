@@ -1,0 +1,6 @@
+
+# Local test databases and session files
+.test-runtime/
+
+# Windows-generated runtime cache
+%SystemDrive%/

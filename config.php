@@ -1,10 +1,11 @@
 <?php
 // Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'movie_night_db');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', getenv('DB_HOST') !== false ? getenv('DB_HOST') : 'localhost');
+define('DB_NAME', getenv('DB_NAME') !== false ? getenv('DB_NAME') : 'movie_night_db');
+define('DB_USER', getenv('DB_USER') !== false ? getenv('DB_USER') : 'root');
+define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
 define('DB_CHARSET', 'utf8mb4');
+define('DB_PORT', (int)(getenv('DB_PORT') ?: 3306));
 
 // Session Security Configuration (MUST be before session_start())
 if (session_status() === PHP_SESSION_NONE) {
@@ -34,9 +35,9 @@ define('ADMIN_KEY', 'wd_movie_night_admin_2025');
 
 // Error Reporting (disable in production)
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', getenv('APP_DEBUG') === '1' ? '1' : '0');
 ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/logs/php_errors.log');
+ini_set('error_log', getenv('APP_LOG_PATH') ?: __DIR__ . '/logs/php_errors.log');
 
 // Timezone
 date_default_timezone_set('Asia/Singapore');
@@ -49,7 +50,7 @@ function getDBConnection() {
     
     if ($pdo === null) {
         try {
-            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+            $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -89,7 +90,7 @@ function validateCSRFToken($token) {
         return false;
     }
     
-    return hash_equals($_SESSION['csrf_token'], $token);
+    return is_string($token) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
 /**
@@ -528,7 +529,7 @@ function validateAdminCSRFToken($token) {
         unset($_SESSION['admin_csrf_token'], $_SESSION['admin_csrf_token_time']);
         return false;
     }
-    return hash_equals($_SESSION['admin_csrf_token'], $token);
+    return is_string($token) && hash_equals($_SESSION['admin_csrf_token'], $token);
 }
 
 /**
@@ -566,4 +567,29 @@ function checkAdminRateLimit($action, $maxRequests = 10, $timeWindow = 60) {
     return true;
 }
 
-?>
+
+/** JSON API guard: authorization precedes database access and token validation. */
+function requireAdminApi(bool $write = false): void {
+    header('Content-Type: application/json');
+    if (!isAdminLoggedIn()) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        exit;
+    }
+    if ($write && !in_array($_SESSION['admin_role'] ?? '', ['admin', 'manager'], true)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'You do not have permission to make changes.']);
+        exit;
+    }
+    if ($write && ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        http_response_code(405);
+        header('Allow: POST');
+        echo json_encode(['success' => false, 'message' => 'POST required']);
+        exit;
+    }
+    if ($write && !validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Invalid or expired security token. Please refresh.']);
+        exit;
+    }
+}

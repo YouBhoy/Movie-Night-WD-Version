@@ -1,20 +1,7 @@
 <?php
 require_once 'config.php';
 
-// Check admin authentication
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Unauthorized']);
-    exit;
-}
-
-header('Content-Type: application/json');
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
-    exit;
-}
+requireAdminApi(true);
 
 $uploadType = $_POST['upload_type'] ?? '';
 
@@ -29,7 +16,8 @@ if ($uploadType === 'logo') {
     $maxSize = 2 * 1024 * 1024; // 2MB
     
     // Validate file type
-    if (!in_array($file['type'], $allowedTypes)) {
+    $mimeType = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    if (!in_array($mimeType, $allowedTypes, true) || getimagesize($file['tmp_name']) === false) {
         echo json_encode(['error' => 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.']);
         exit;
     }
@@ -47,8 +35,9 @@ if ($uploadType === 'logo') {
     }
     
     // Generate unique filename
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $filename = 'logo_' . time() . '.' . $extension;
+    $extensions = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+    $extension = $extensions[$mimeType];
+    $filename = 'logo_' . bin2hex(random_bytes(16)) . '.' . $extension;
     $uploadPath = $uploadDir . $filename;
     
     // Move uploaded file

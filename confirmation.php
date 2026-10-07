@@ -35,19 +35,21 @@ unset($_SESSION['registration_data']);
     <title>Registration Confirmed - WD Movie Night</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body class="dark-theme">
     <div class="container">
         <div class="confirmation-container">
             <div class="confirmation-header">
-                <div class="success-icon">✅</div>
+                <div class="success-icon"><i class="fas fa-circle-check ui-icon" aria-hidden="true"></i></div>
                 <h1 class="confirmation-title">Registration Confirmed!</h1>
                 <p class="confirmation-subtitle">Your seats have been successfully reserved</p>
             </div>
 
             <div class="confirmation-details">
                 <div class="detail-section">
-                    <h2 class="detail-title">🎬 Movie Details</h2>
+                    <h2 class="detail-title"><i class="fas fa-film ui-icon" aria-hidden="true"></i> Movie Details</h2>
                     <div class="detail-grid">
                         <div class="detail-item">
                             <span class="detail-label">Movie:</span>
@@ -69,7 +71,7 @@ unset($_SESSION['registration_data']);
                 </div>
 
                 <div class="detail-section">
-                    <h2 class="detail-title">👤 Registration Details</h2>
+                    <h2 class="detail-title"><i class="fas fa-user ui-icon" aria-hidden="true"></i> Registration Details</h2>
                     <div class="detail-grid">
                         <div class="detail-item">
                             <span class="detail-label">Employee ID:</span>
@@ -95,7 +97,7 @@ unset($_SESSION['registration_data']);
                 </div>
 
                 <div class="detail-section">
-                    <h2 class="detail-title">🎫 Selected Seats</h2>
+                    <h2 class="detail-title"><i class="fas fa-ticket ui-icon" aria-hidden="true"></i> Selected Seats</h2>
                     <div class="seat-display">
                         <?php foreach ($registrationData['selected_seats'] as $seat): ?>
                             <span class="seat-badge"><?php echo htmlspecialchars($seat); ?></span>
@@ -105,7 +107,7 @@ unset($_SESSION['registration_data']);
 
                 <div class="reminder-section">
                     <div class="reminder-box">
-                        <div class="reminder-icon">🎬</div>
+                        <div class="reminder-icon"><i class="fas fa-film ui-icon" aria-hidden="true"></i></div>
                         <p class="reminder-text">
                             Please arrive at least 15 minutes before the movie starts to ensure a smooth seating experience.
                         </p>

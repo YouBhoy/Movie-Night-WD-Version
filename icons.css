@@ -1,0 +1,22 @@
+/* Consistent decorative icons across the public and admin interfaces. */
+.ui-icon {
+    width: 1.15em;
+    text-align: center;
+    flex-shrink: 0;
+}
+.btn > .ui-icon,
+.detail-title > .ui-icon,
+label > .ui-icon {
+    margin-right: 0.3em;
+}
+.feature-icon > .ui-icon,
+.success-icon > .ui-icon,
+.error-icon > .ui-icon,
+.reminder-icon > .ui-icon,
+.no-results-icon > .ui-icon {
+    width: auto;
+}
+
+.seat-recommendation { margin: 1rem 0; padding: 1rem; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; }
+.seat-recommendation[hidden] { display: none; }
+.seat-recommendation p { margin: 0 0 0.75rem; font-size: 0.95rem; line-height: 1.5; }

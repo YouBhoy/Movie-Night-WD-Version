@@ -1,34 +1,13 @@
 <?php
 require_once 'config.php';
+require_once __DIR__ . '/services/MysqlBookingRepository.php';
 
-// Simple admin authentication
-session_start();
-
-// Check if already logged in
-if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
-    // User is logged in, show dashboard
-    $logged_in = true;
-} else {
-    $logged_in = false;
-    $error = '';
-    
-    // Handle login
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $username = trim($_POST['username'] ?? '');
-        $password = $_POST['password'] ?? '';
-        
-        // Use the database-based adminLogin function
-        if (adminLogin($username, $password)) {
-            $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_username'] = $username;
-            secureAdminSession(); // Session hardening
-            header('Location: admin.php');
-            exit;
-        } else {
-            $error = 'Invalid username or password.';
-        }
-    }
+// Use the dedicated login flow so lockout and CSRF apply consistently.
+if (!isAdminLoggedIn()) {
+    header('Location: admin-login.php');
+    exit;
 }
+$logged_in = true;
 
 // Handle logout
 if (isset($_GET['logout'])) {
@@ -39,6 +18,7 @@ if (isset($_GET['logout'])) {
 
 // Handle AJAX actions
 if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    requireAdminApi(true);
     if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => 'Invalid or expired CSRF token. Please refresh and try again.']);
@@ -57,26 +37,10 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
         switch ($_POST['action']) {
             case 'delete_registration':
                 $regId = (int)($_POST['reg_id'] ?? 0);
-                if ($regId > 0) {
-                    // Get registration details first
-                    $stmt = $pdo->prepare("SELECT * FROM registrations WHERE id = ?");
-                    $stmt->execute([$regId]);
-                    $registration = $stmt->fetch();
-                    
-                    if ($registration) {
-                        // Delete the registration
-                        $deleteStmt = $pdo->prepare("DELETE FROM registrations WHERE id = ?");
-                        $deleteStmt->execute([$regId]);
-                        
-                        echo json_encode(['success' => true, 'message' => 'Registration deleted successfully']);
-                    } else {
-                        echo json_encode(['success' => false, 'message' => 'Registration not found']);
-                    }
-                } else {
-                    echo json_encode(['success' => false, 'message' => 'Invalid registration ID']);
-                }
+                $registration = $regId > 0 ? bookingService($pdo)->cancel($regId) : null;
+                echo json_encode(['success' => $registration !== null, 'message' => $registration ? 'Registration cancelled and seats released' : 'Registration not found']);
                 exit;
-                
+
             case 'update_event_setting':
                 $setting_key = $_POST['setting_key'] ?? '';
                 $setting_value = $_POST['setting_value'] ?? '';
@@ -122,10 +86,10 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 $emp_id = (int)($_POST['emp_id'] ?? 0);
                 
                 if ($emp_id > 0) {
-                    $stmt = $pdo->prepare("DELETE FROM employees WHERE id = ?");
+                    $stmt = $pdo->prepare("DELETE FROM employees WHERE id = ? AND is_active = 0 AND NOT EXISTS (SELECT 1 FROM registrations WHERE registrations.emp_number = employees.emp_number AND status = 'active')");
                     $stmt->execute([$emp_id]);
                     
-                    echo json_encode(['success' => true, 'message' => 'Employee deleted successfully']);
+                    echo json_encode(['success' => $stmt->rowCount() > 0, 'message' => $stmt->rowCount() > 0 ? 'Employee deleted successfully' : 'Deactivate the employee and cancel their bookings before deletion']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Invalid employee ID']);
                 }
@@ -136,7 +100,12 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 $current_status = (int)($_POST['current_status'] ?? 0);
                 
                 if ($emp_id > 0) {
-                    $new_status = $current_status == 1 ? 0 : 1;
+                    $pdo->beginTransaction();
+                    $lockEmployee = $pdo->prepare('SELECT is_active FROM employees WHERE id = ? FOR UPDATE');
+                    $lockEmployee->execute([$emp_id]);
+                    $currentEmployee = $lockEmployee->fetch();
+                    if (!$currentEmployee) throw new RuntimeException('Employee not found');
+                    $new_status = (int)$currentEmployee['is_active'] === 1 ? 0 : 1;
                     
                     // If deactivating employee, free their seats first
                     if ($new_status == 0) {
@@ -154,8 +123,7 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                             if ($registration) {
                                 // Free seats and cancel registration
                                 $reg_id = $registration['id'];
-                                $pdo->query("SET @reg_id = " . intval($reg_id));
-                                $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                                bookingService($pdo)->cancel((int)$reg_id);
                             }
                         }
                     }
@@ -164,6 +132,8 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                     $stmt = $pdo->prepare("UPDATE employees SET is_active = ? WHERE id = ?");
                     $stmt->execute([$new_status, $emp_id]);
                     
+                    $pdo->commit();
+
                     // Get employee details for logging
                     $empDetailsStmt = $pdo->prepare("SELECT emp_number, full_name FROM employees WHERE id = ?");
                     $empDetailsStmt->execute([$emp_id]);
@@ -206,11 +176,11 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 $seatId = (int)($_POST['seat_id'] ?? 0);
                 $status = $_POST['status'] ?? 'available';
                 
-                if ($seatId > 0) {
-                    $stmt = $pdo->prepare("UPDATE seats SET status = ? WHERE id = ?");
+                if ($seatId > 0 && in_array($status, ['available', 'blocked', 'reserved'], true)) {
+                    $stmt = $pdo->prepare("UPDATE seats SET status = ? WHERE id = ? AND status != 'occupied'");
                     $stmt->execute([$status, $seatId]);
                     
-                    echo json_encode(['success' => true, 'message' => 'Seat status updated']);
+                    echo json_encode(['success' => $stmt->rowCount() > 0, 'message' => $stmt->rowCount() > 0 ? 'Seat status updated' : 'Seat is occupied, missing, or unchanged']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Invalid seat ID']);
                 }
@@ -254,10 +224,12 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                     echo json_encode(['success' => false, 'message' => 'Employee number already exists']);
                     exit;
                 }
+                $pdo->beginTransaction();
                 // Get current employee info
-                $empStmt = $pdo->prepare("SELECT emp_number, shift_id FROM employees WHERE id = ?");
+                $empStmt = $pdo->prepare("SELECT emp_number, shift_id FROM employees WHERE id = ? FOR UPDATE");
                 $empStmt->execute([$id]);
                 $currentEmp = $empStmt->fetch();
+                if (!$currentEmp) throw new RuntimeException('Employee not found');
                 $registrationCancelled = false;
                 if ($currentEmp) {
                     $old_emp_number = $currentEmp['emp_number'];
@@ -270,14 +242,14 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                         $reg_id = $reg['id'];
                         // If shift is changing or emp_number is changing, cancel registration and free seats
                         if ($shift_id != $old_shift_id || $emp_number !== $old_emp_number) {
-                            $pdo->query("SET @reg_id = " . intval($reg_id));
-                            $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                            bookingService($pdo)->cancel((int)$reg_id);
                             $registrationCancelled = true;
                         }
                     }
                 }
                 $stmt = $pdo->prepare("UPDATE employees SET emp_number = ?, full_name = ?, shift_id = ? WHERE id = ?");
                 $stmt->execute([$emp_number, $full_name, $shift_id, $id]);
+                $pdo->commit();
                 $msg = 'Employee updated';
                 if ($registrationCancelled) {
                     $msg .= '. Registration cancelled and seat(s) freed.';
@@ -287,8 +259,9 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
             case 'delete_employee_cleanup':
                 $emp_id = (int)($_POST['emp_id'] ?? 0);
                 if ($emp_id > 0) {
+                    $pdo->beginTransaction();
                     // Check if employee is deactivated
-                    $empStmt = $pdo->prepare("SELECT emp_number, full_name, is_active FROM employees WHERE id = ?");
+                    $empStmt = $pdo->prepare("SELECT emp_number, full_name, is_active FROM employees WHERE id = ? FOR UPDATE");
                     $empStmt->execute([$emp_id]);
                     $employee = $empStmt->fetch();
                     if (!$employee) {
@@ -307,8 +280,7 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                         $reg_id = $registration['id'];
                         if ($registration['status'] === 'active') {
                             // Free seats if any (call stored procedure if exists)
-                            $pdo->query("SET @reg_id = " . intval($reg_id));
-                            $pdo->query("CALL freeSeatsByRegistration(@reg_id)");
+                            bookingService($pdo)->cancel((int)$reg_id);
                         }
                         // Delete registration
                         $delRegStmt = $pdo->prepare("DELETE FROM registrations WHERE id = ?");
@@ -317,6 +289,7 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                     // Delete employee
                     $delEmpStmt = $pdo->prepare("DELETE FROM employees WHERE id = ?");
                     $delEmpStmt->execute([$emp_id]);
+                    $pdo->commit();
                     // Log the deletion
                     $adminUser = $_SESSION['admin_username'] ?? 'admin';
                     $details = "Employee deleted: {$employee['emp_number']} - {$employee['full_name']} (all registrations and seats freed)";
@@ -383,6 +356,7 @@ if ($logged_in && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'
                 echo json_encode(['success'=>true,'message'=>'Admin deleted successfully']); exit;
         }
     } catch (Exception $e) {
+        if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
         echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
         exit;
     }
@@ -1063,6 +1037,7 @@ $adminCsrfToken = generateAdminCSRFToken();
         }
     </style>
     <meta name="admin-csrf-token" content="<?php echo $adminCsrfToken; ?>">
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body>
     <div class="container">
@@ -1133,7 +1108,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                         <p style="color: var(--text-muted);">Click the save button next to each setting to update it individually.</p>
                         <div class="form-grid" style="gap: 2rem;">
                             <div class="form-group">
-                                <label for="movie_name" style="color: var(--secondary-color); font-weight: 600;">🎬 Movie Name</label>
+                                <label for="movie_name" style="color: var(--secondary-color); font-weight: 600;"><i class="fas fa-film ui-icon" aria-hidden="true"></i> Movie Name</label>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="text" id="movie_name" name="movie_name" placeholder="Enter movie name" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
                                     <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('movie_name')">
@@ -1142,7 +1117,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="movie_time" style="color: var(--secondary-color); font-weight: 600;">⏰ Movie Time</label>
+                                <label for="movie_time" style="color: var(--secondary-color); font-weight: 600;"><i class="fas fa-clock ui-icon" aria-hidden="true"></i> Movie Time</label>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="text" id="movie_time" name="movie_time" placeholder="e.g., 7:00 PM" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
                                     <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('movie_time')">
@@ -1151,7 +1126,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="venue_name" style="color: var(--secondary-color); font-weight: 600;">🏢 Venue / Cinema Hall Name</label>
+                                <label for="venue_name" style="color: var(--secondary-color); font-weight: 600;"><i class="fas fa-building ui-icon" aria-hidden="true"></i> Venue / Cinema Hall Name</label>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="text" id="venue_name" name="venue_name" placeholder="Enter venue name" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
                                     <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('venue_name')">
@@ -1160,7 +1135,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="max_attendees" style="color: var(--secondary-color); font-weight: 600;">👥 Max Attendees per Booking</label>
+                                <label for="max_attendees" style="color: var(--secondary-color); font-weight: 600;"><i class="fas fa-users ui-icon" aria-hidden="true"></i> Max Attendees per Booking</label>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                                     <input type="number" id="max_attendees" name="max_attendees" min="1" max="10" value="3" style="background: var(--background); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 1rem;">
                                     <button type="button" class="btn btn-primary" style="background: var(--primary-color); color: #fff; border-radius: 8px;" onclick="saveSetting('max_attendees')">
@@ -1199,7 +1174,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                                     <li>Marks the employee as inactive</li>
                                 </ul>
                                 <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0.5rem 0 0 0; line-height: 1.5;">
-                                    <strong>Visual Indicators:</strong> Employees with active registrations are marked with 📋 "Has Registration" 
+                                    <strong>Visual Indicators:</strong> Employees with active registrations are marked with <i class="fas fa-clipboard-list ui-icon" aria-hidden="true"></i> "Has Registration"
                                     to help you identify who will have their seats freed when deactivated.
                                 </p>
                             </div>
@@ -1973,7 +1948,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                     '<span class="status-badge" style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">Inactive</span>';
                 
                 const hasRegistration = emp.has_active_registration ? 
-                    '<span style="color: #f59e0b; font-size: 0.75rem; margin-left: 0.5rem; cursor: help;" title="This employee has an active registration. Deactivating them will free their seat(s).">📋 Has Registration</span>' : '';
+                    '<span style="color: #f59e0b; font-size: 0.75rem; margin-left: 0.5rem; cursor: help;" title="This employee has an active registration. Deactivating them will free their seat(s)."><i class="fas fa-clipboard-list ui-icon" aria-hidden="true"></i> Has Registration</span>' : '';
                 
                 html += `<tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:0.75rem 0.5rem;">${emp.emp_number}</td>
@@ -2069,7 +2044,7 @@ $adminCsrfToken = generateAdminCSRFToken();
                 confirmMessage = 'Are you sure you want to deactivate this employee?\n\n' +
                     'Employee: ' + (employee ? employee.full_name : 'Unknown') + '\n' +
                     'Employee #: ' + (employee ? employee.emp_number : 'Unknown') + '\n\n' +
-                    '⚠️  This action will:\n' +
+                    'This action will:\n' +
                     '• Deactivate the employee\n' +
                     '• Free their seat(s) if they have an active registration\n' +
                     '• Cancel their current registration\n\n' +

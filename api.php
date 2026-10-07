@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once __DIR__ . '/services/MysqlBookingRepository.php';
 
 // Set proper headers
 header('Content-Type: application/json');
@@ -20,8 +21,15 @@ if (!checkRateLimit($clientIP, 30, 60)) {
 }
 
 try {
-    $pdo = getDBConnection();
     $action = $_POST['action'] ?? $_GET['action'] ?? '';
+    if (in_array($action, ['get_registrations', 'search_registrations'], true)) requireAdminApi();
+    if ($action === 'register' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        header('Allow: POST');
+        echo json_encode(['success' => false, 'message' => 'POST required']);
+        exit;
+    }
+    $pdo = getDBConnection();
     
     // CSRF token validation for POST requests
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -59,7 +67,7 @@ try {
     error_log("API Error: " . $e->getMessage());
     echo json_encode([
         'success' => false, 
-        'message' => 'An error occurred: ' . $e->getMessage()
+        'message' => $e instanceof BookingValidationException ? $e->getMessage() : 'An error occurred. Please try again later.'
     ]);
 }
 
@@ -94,25 +102,11 @@ function handleGetSeats($pdo) {
         $seatCountStmt->execute([$hallId, $shiftId]);
         $seatCount = $seatCountStmt->fetchColumn();
         
-        // If no seats exist, create them using the stored procedure
+        // Layouts are configured by an administrator, never destructively initialized by public reads.
         if ($seatCount == 0) {
-            try {
-                $createStmt = $pdo->prepare("CALL createSeatsForHallShift(?, ?, ?)");
-                $createStmt->execute([$hallId, $shiftId, $shift['shift_name']]);
-                
-                // Verify seats were created
-                $seatCountStmt->execute([$hallId, $shiftId]);
-                $newSeatCount = $seatCountStmt->fetchColumn();
-                
-                if ($newSeatCount == 0) {
-                    throw new Exception('Failed to create seats for this hall and shift combination');
-                }
-            } catch (Exception $e) {
-                error_log("Seat creation error: " . $e->getMessage());
-                throw new Exception('Failed to initialize seats: ' . $e->getMessage());
-            }
+            throw new BookingValidationException('Seats have not been configured. Please contact the event organizer.');
         }
-        
+
         // Get all seats for this hall and shift combination
         $stmt = $pdo->prepare("
             SELECT id, seat_number, row_letter, seat_position, status 
@@ -136,187 +130,19 @@ function handleGetSeats($pdo) {
         
     } catch (Exception $e) {
         error_log("Seat loading error: " . $e->getMessage());
-        throw new Exception("Failed to load seats: " . $e->getMessage());
+        throw $e;
     }
 }
 
 function handleRegistration($pdo) {
-    try {
-        // Validate input data
-        $empNumber = strtoupper(trim($_POST['emp_number'] ?? ''));
-        $staffName = trim($_POST['staff_name'] ?? '');
-        $attendeeCount = filter_var($_POST['attendee_count'] ?? '', FILTER_VALIDATE_INT);
-        $hallId = filter_var($_POST['hall_id'] ?? '', FILTER_VALIDATE_INT);
-        $selectedSeatsJson = $_POST['selected_seats'] ?? '';
-        
-        // Basic validation
-        if (empty($empNumber) || strlen($empNumber) < 2) {
-            throw new Exception('Employee number must be at least 2 characters');
-        }
-        
-        if (empty($staffName) || strlen($staffName) < 2) {
-            throw new Exception('Full name must be at least 2 characters');
-        }
-        
-        // Get max attendees setting from database
-        $maxAttendees = getEventSetting('max_attendees', MAX_ATTENDEES_PER_BOOKING);
-        
-        if (!$attendeeCount || $attendeeCount < 1 || $attendeeCount > $maxAttendees) {
-            throw new Exception('Invalid attendee count. Maximum ' . $maxAttendees . ' attendees allowed.');
-        }
-        
-        if (!$hallId) {
-            throw new Exception('Please select a hall');
-        }
-        
-        $selectedSeats = json_decode($selectedSeatsJson, true);
-        if (!is_array($selectedSeats) || count($selectedSeats) !== $attendeeCount) {
-            throw new Exception('Please select exactly ' . $attendeeCount . ' seat(s)');
-        }
-        
-        // Check if registration is enabled
-        if (!isRegistrationEnabled()) {
-            throw new Exception('Registration is currently disabled');
-        }
-        
-        // Check if employee exists in employees table and get department
-        $empCheckStmt = $pdo->prepare("SELECT full_name, shift_id FROM employees WHERE emp_number = ? AND is_active = 1");
-        $empCheckStmt->execute([$empNumber]);
-        $employee = $empCheckStmt->fetch();
-        if (!$employee) {
-            throw new Exception('Employee not found');
-        }
-        $shiftId = $employee['shift_id'];
-        // Get shift name and hall id
-        $shiftStmt = $pdo->prepare("SELECT shift_name, hall_id FROM shifts WHERE id = ? AND is_active = 1");
-        $shiftStmt->execute([$shiftId]);
-        $shift = $shiftStmt->fetch();
-        if (!$shift) {
-            throw new Exception('Shift not found for employee');
-        }
-        $shiftName = $shift['shift_name'];
-        $hallId = $shift['hall_id'];
-        
-        // Verify that the provided name matches the employee record
-        if (strtolower(trim($staffName)) !== strtolower(trim($employee['full_name']))) {
-            throw new Exception('Employee name does not match our records. Please use the auto-filled name.');
-        }
-        
-        // Check if employee number already registered
-        if (isEmployeeRegistered($empNumber)) {
-            throw new Exception('This employee number is already registered for this event');
-        }
-        // Extra check for duplicate active registration (in case isEmployeeRegistered is not used everywhere)
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM registrations WHERE emp_number = ? AND status = 'active'");
-        $stmt->execute([$empNumber]);
-        if ($stmt->fetchColumn() > 0) {
-            throw new Exception('This employee number is already registered for this event');
-        }
-        
-        // Verify hall and shift combination
-        $hallShiftStmt = $pdo->prepare("
-            SELECT h.hall_name, h.max_attendees_per_booking, s.shift_name 
-            FROM cinema_halls h 
-            JOIN shifts s ON h.id = s.hall_id 
-            WHERE h.id = ? AND s.id = ? AND h.is_active = 1 AND s.is_active = 1
-        ");
-        $hallShiftStmt->execute([$hallId, $shiftId]);
-        $hallShift = $hallShiftStmt->fetch();
-
-        if (!$hallShift) {
-            throw new Exception('Invalid hall and shift combination');
-        }
-        
-        // Validate that selected seats are available
-        $placeholders = str_repeat('?,', count($selectedSeats) - 1) . '?';
-        $seatCheckStmt = $pdo->prepare("
-            SELECT COUNT(*) as available_count 
-            FROM seats 
-            WHERE hall_id = ? AND shift_id = ? AND seat_number IN ($placeholders) AND status = 'available'
-        ");
-        $seatCheckParams = array_merge([$hallId, $shiftId], $selectedSeats);
-        $seatCheckStmt->execute($seatCheckParams);
-        $availableCount = $seatCheckStmt->fetchColumn();
-        
-        if ($availableCount != count($selectedSeats)) {
-            throw new Exception('One or more selected seats are no longer available. Please refresh and try again.');
-        }
-        
-        // Begin transaction for seat reservation
-        $pdo->beginTransaction();
-        
-        try {
-            // Reserve the seats by updating their status
-            $updateSeatStmt = $pdo->prepare("
-                UPDATE seats 
-                SET status = 'occupied', updated_at = NOW() 
-                WHERE hall_id = ? AND shift_id = ? AND seat_number = ? AND status = 'available'
-            ");
-            
-            foreach ($selectedSeats as $seatNumber) {
-                $updateSeatStmt->execute([$hallId, $shiftId, $seatNumber]);
-                if ($updateSeatStmt->rowCount() === 0) {
-                    throw new Exception("Failed to reserve seat {$seatNumber}. It may have been taken by another user.");
-                }
-            }
-            
-            // Create registration record
-            $insertStmt = $pdo->prepare("
-                INSERT INTO registrations (
-                    emp_number, staff_name, attendee_count, hall_id, shift_id,
-                    selected_seats, movie_name, screening_time, ip_address, user_agent, 
-                    status, registration_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
-            ");
-            
-            $movieName = getEventSetting('movie_name', 'WD Movie Night');
-            $screeningTime = getEventSetting('screening_time', 'TBA');
-            
-            $insertStmt->execute([
-                $empNumber,
-                $staffName,
-                $attendeeCount,
-                $hallId,
-                $shiftId,
-                json_encode($selectedSeats),
-                $movieName,
-                $screeningTime,
-                $_SERVER['REMOTE_ADDR'] ?? '',
-                $_SERVER['HTTP_USER_AGENT'] ?? ''
-            ]);
-            
-            $registrationId = $pdo->lastInsertId();
-            
-            $pdo->commit();
-            
-            // Store registration data in session for confirmation page
-            $_SESSION['registration_success'] = true;
-            $_SESSION['registration_data'] = [
-                'id' => $registrationId,
-                'emp_number' => $empNumber,
-                'staff_name' => $staffName,
-                'attendee_count' => $attendeeCount,
-                'hall_name' => $hallShift['hall_name'],
-                'shift_name' => $hallShift['shift_name'],
-                'selected_seats' => $selectedSeats,
-                'registration_date' => date('Y-m-d H:i:s')
-            ];
-            
-            echo json_encode([
-                'success' => true,
-                'message' => 'Registration completed successfully! 🎉',
-                'redirect' => 'confirmation.php'
-            ]);
-            
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
-        
-    } catch (Exception $e) {
-        error_log("Registration Error: " . $e->getMessage());
-        throw new Exception($e->getMessage());
-    }
+    $input = $_POST;
+    $input['selected_seats'] = json_decode($_POST['selected_seats'] ?? '', true);
+    $input['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
+    $input['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $booking = bookingService($pdo)->register($input);
+    $_SESSION['registration_success'] = true;
+    $_SESSION['registration_data'] = $booking;
+    echo json_encode(['success' => true, 'message' => 'Registration completed successfully!', 'redirect' => 'confirmation.php']);
 }
 
 function handleCheckEmployee($pdo) {

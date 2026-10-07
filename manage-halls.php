@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'config.php';
 
 // Check if user is logged in as admin
@@ -43,11 +42,12 @@ $deactivatedShifts = array_filter($shifts, function($s) { return !$s['is_active'
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="manage-halls.css">
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body>
 <div class="container">
     <h1>Edit Cinema Halls & Shifts</h1>
-    <a href="admin-dashboard.php" class="btn btn-secondary">⬅️ Back to Dashboard</a>
+    <a href="admin-dashboard.php" class="btn btn-secondary"><i class="fas fa-arrow-left ui-icon" aria-hidden="true"></i> Back to Dashboard</a>
     <div class="section">
         <h2 style="color:#ffd700;">Cinema Halls</h2>
         <div class="tab-nav">

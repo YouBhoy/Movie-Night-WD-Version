@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once 'config.php';
+require_once __DIR__ . '/services/MysqlBookingRepository.php';
 
 // Check if user is logged in as admin
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -8,13 +8,16 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') requireAdminApi(true);
+header('Content-Type: text/html; charset=UTF-8');
+
 $pdo = getDBConnection();
 $message = '';
 $messageType = '';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
         $message = "Security validation failed. Please try again.";
         $messageType = "error";
     } else {
@@ -31,45 +34,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 try {
-                    $pdo->beginTransaction();
-                    
-                    // Get registration details for logging
-                    $regStmt = $pdo->prepare("SELECT emp_number, selected_seats, hall_id, shift_id FROM registrations WHERE id = ?");
-                    $regStmt->execute([$regId]);
-                    $registration = $regStmt->fetch();
-                    
+                    $registration = bookingService($pdo)->cancel($regId);
                     if ($registration) {
-                        // Release seats back to available status
-                        $seats = json_decode($registration['selected_seats'], true);
-                        if (is_array($seats)) {
-                            $seatUpdateStmt = $pdo->prepare("UPDATE seats SET status = 'available', updated_at = NOW() WHERE seat_number = ? AND hall_id = ? AND shift_id = ?");
-                            
-                            foreach ($seats as $seat) {
-                                $seatUpdateStmt->execute([$seat, $registration['hall_id'], $registration['shift_id']]);
-                            }
-                        }
-                        
-                        // Delete registration
-                        $deleteStmt = $pdo->prepare("DELETE FROM registrations WHERE id = ?");
-                        $deleteStmt->execute([$regId]);
-                        
-                        $pdo->commit();
-                        
-                        logAdminActivity('delete_registration', 'registrations', $regId, [
+                        logAdminActivity('cancel_registration', 'registrations', $regId, [
                             'emp_number' => $registration['emp_number'],
-                            'seats_released' => $seats
+                            'seats_released' => $registration['selected_seats']
                         ]);
-                        
-                        $message = "Registration deleted successfully and seats released ✅";
-                        $messageType = "success";
+                        $message = 'Registration cancelled and seats released';
+                        $messageType = 'success';
                     } else {
-                        $pdo->rollBack();
-                        $message = "Registration not found";
-                        $messageType = "error";
+                        $message = 'Registration not found';
+                        $messageType = 'error';
                     }
                     
                 } catch (Exception $e) {
-                    $pdo->rollBack();
+                    if ($pdo->inTransaction()) $pdo->rollBack();
                     // Log the detailed error for debugging
                     error_log("Admin Dashboard - Delete registration error: " . $e->getMessage());
                     // Provide a generic error message to the user
@@ -98,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'movie_location' => $movieLocation
                     ]);
                     
-                    $message = "Event settings updated successfully ✅";
+                    $message = "Event settings updated successfully";
                     $messageType = "success";
                 } catch (Exception $e) {
                     // Log the detailed error for debugging
@@ -171,7 +150,7 @@ $recentRegistrations = $recentStmt->fetchAll();
 $movieName = $settings['movie_name'] ?? 'WD Movie Night';
 $registrationEnabled = ($settings['registration_enabled'] ?? '1') === '1';
 
-$csrfToken = generateCSRFToken();
+$csrfToken = generateAdminCSRFToken();
 ?>
 
 <!DOCTYPE html>
@@ -576,6 +555,8 @@ $csrfToken = generateCSRFToken();
             }
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body>
     <div class="container">
@@ -589,11 +570,11 @@ $csrfToken = generateCSRFToken();
                 </div>
             </div>
             <div class="header-actions">
-                <a href="seat-layout-editor.php" class="btn btn-secondary">🪑 Seat Layout</a>
-                <a href="manage-halls.php" class="btn btn-secondary" id="manageHallsBtn">🏢 Manage Halls/Shifts</a>
-                <a href="index.php" class="btn btn-secondary">🔙 Back to Registration</a>
-                <a href="admin.php" class="btn btn-primary">⚙️ Settings</a>
-                <a href="logout.php" class="btn btn-danger">🚪 Logout</a>
+                <a href="seat-layout-editor.php" class="btn btn-secondary"><i class="fas fa-chair ui-icon" aria-hidden="true"></i> Seat Layout</a>
+                <a href="manage-halls.php" class="btn btn-secondary" id="manageHallsBtn"><i class="fas fa-building ui-icon" aria-hidden="true"></i> Manage Halls/Shifts</a>
+                <a href="index.php" class="btn btn-secondary"><i class="fas fa-arrow-left ui-icon" aria-hidden="true"></i> Back to Registration</a>
+                <a href="admin.php" class="btn btn-primary"><i class="fas fa-gear ui-icon" aria-hidden="true"></i> Settings</a>
+                <a href="logout.php" class="btn btn-danger"><i class="fas fa-right-from-bracket ui-icon" aria-hidden="true"></i> Logout</a>
             </div>
         </div>
 
@@ -629,7 +610,7 @@ $csrfToken = generateCSRFToken();
             <div class="section-header">
                 <h2 class="section-title">Recent Registrations</h2>
                 <div class="quick-actions">
-                    <button class="btn btn-secondary" onclick="refreshRegistrations()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="refreshRegistrations()"><i class="fas fa-rotate ui-icon" aria-hidden="true"></i> Refresh</button>
                 </div>
             </div>
 
@@ -674,7 +655,7 @@ $csrfToken = generateCSRFToken();
                         <?php if (empty($recentRegistrations)): ?>
                         <tr>
                             <td colspan="7" class="no-results">
-                                <div class="no-results-icon">📋</div>
+                                <div class="no-results-icon"><i class="fas fa-clipboard-list ui-icon" aria-hidden="true"></i></div>
                                 <p>No registrations found</p>
                             </td>
                         </tr>
@@ -817,7 +798,7 @@ $csrfToken = generateCSRFToken();
                 tableBody.innerHTML = `
                     <tr>
                         <td colspan="7" class="no-results">
-                            <div class="no-results-icon">🔍</div>
+                            <div class="no-results-icon"><i class="fas fa-magnifying-glass ui-icon" aria-hidden="true"></i></div>
                             <p>No registrations found${searchTerm ? ` for "${searchTerm}"` : ''}</p>
                             <small style="color: #64748b; margin-top: 0.5rem; display: block;">
                                 Try searching by employee number or name

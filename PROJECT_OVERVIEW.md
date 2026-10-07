@@ -1,5 +1,18 @@
 # 🎬 WD Movie Night — Project Overview (Movie-Night-WD-Version)
 
+> **Implementation update — October 7, 2026:** The sections below describe the original baseline and include findings that have since been fixed. Booking creation and cancellation now live in services/BookingService.php behind BookingRepository, with services/MysqlBookingRepository.php providing the current MySQL implementation. Admin write guards and CSRF handling were corrected; public registration lists require admin authentication; layout replacement and destructive hall/shift changes reject active bookings. See tests/README.md for the regression suite.
+>
+> **Behavior changes:** Admin “delete registration” actions now cancel and retain history while releasing seats. Occupied status is controlled by bookings. Public seat-map reads no longer create layouts; an administrator must configure seats first. Layout replacement requires no active registrations or occupied seats. Viewer accounts cannot mutate data. Legacy admin login redirects to admin-login.php.
+>
+> **Validation:** 15 booking-service checks, 15 endpoint security checks, and 15 integration checks passed against an isolated MariaDB instance with synthetic data, including concurrent requests. PHP lint and syntax checks of modified inline JavaScript passed. Production deployment and visual browser verification have not been performed.
+>
+> **Seat selection update:** Recommendations now evaluate the full attendee count and preserve existing choices where possible. Partial selections that can become a complete contiguous group without orphan seats are allowed without premature warnings. Warnings identify stranded seats or separated groups, remember accepted problems, and offer a complete recommended group. Cancelling restores the preceding selection. Availability is refreshed immediately before booking, while the server transaction remains the final reservation authority. Recorded missing positions are treated as boundaries; explicit physical aisle metadata is not yet part of the current MySQL layout editor. The Node regression suite passes 28 checks.
+>
+> **Next Firebase work:** Design explicit event/screening IDs and a deterministic active-booking key; implement a Firestore repository and transaction retries; extract remaining employee, settings, and layout persistence. The current database still represents one event, so uniqueness is one active booking per employee. Shared rate limiting, session expiry/revocation, employee identity verification, and deployment restrictions for logs/dumps remain separate hardening tasks. Firebase is not connected yet.
+>
+> **Configuration:** DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASS may be supplied through environment variables. Existing local defaults remain compatible with XAMPP. Browser debug errors are disabled unless APP_DEBUG=1. APP_LOG_PATH overrides the default log destination. Upload callers must send admin_csrf_token.
+
+
 > An internal company **cinema / movie-night booking system** built with **plain PHP 8.2 + MySQL (MariaDB)** on a classic **XAMPP / Apache** stack. Employees register for a movie screening using their employee number; the system auto-assigns their work shift (which maps to a cinema hall), lets them pick seats on an interactive seat map, and stores the booking. A separate admin console manages halls, shifts, seat layouts, employees, event settings, admin accounts, and CSV exports.
 
 This document is generated from a full read of the codebase in `c:\xampp\htdocs\Use this for the Movie Night\Movie-Night-WD-Version`.

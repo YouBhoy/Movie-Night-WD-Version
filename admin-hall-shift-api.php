@@ -1,20 +1,43 @@
 <?php
 require_once 'config.php';
 
-// Simple admin authentication check
-session_start();
-// Temporarily comment out authentication for testing
-// if (!isAdminLoggedIn()) {
-//     header('Content-Type: application/json');
-//     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
-//     exit;
-// }
+$requestedAction = $_POST['action'] ?? $_GET['action'] ?? '';
+$readActions = ['get_active_halls', 'get_shifts_by_hall'];
+requireAdminApi(!in_array($requestedAction, $readActions, true));
 
-// Set JSON header
-header('Content-Type: application/json');
-
+ob_start();
 try {
     $pdo = getDBConnection();
+    if (in_array($requestedAction, ['deactivate_hall', 'delete_hall_full', 'deactivate_shift', 'delete_shift_full', 'update_shift'], true)) {
+        $pdo->beginTransaction();
+        if (in_array($requestedAction, ['deactivate_hall', 'delete_hall_full'], true)) {
+            $targetId = (int)($_POST['hall_id'] ?? 0);
+            $lock = $pdo->prepare('SELECT id FROM cinema_halls WHERE id = ? FOR UPDATE');
+            $lock->execute([$targetId]);
+            if (!$lock->fetch()) throw new DomainException('Hall not found');
+            $where = 'hall_id';
+        } else {
+            $targetId = (int)($_POST['shift_id'] ?? 0);
+            $lookup = $pdo->prepare('SELECT hall_id FROM shifts WHERE id = ?');
+            $lookup->execute([$targetId]);
+            $target = $lookup->fetch();
+            if (!$target) throw new DomainException('Shift not found');
+            $lock = $pdo->prepare('SELECT id FROM cinema_halls WHERE id = ? FOR UPDATE');
+            $lock->execute([$target['hall_id']]);
+            $lock->fetch();
+            $lock = $pdo->prepare('SELECT id FROM shifts WHERE id = ? FOR UPDATE');
+            $lock->execute([$targetId]);
+            $lock->fetch();
+            $where = 'shift_id';
+        }
+        // $where is selected only from the two fixed column names above.
+        $active = $pdo->prepare("SELECT id FROM registrations WHERE $where = ? AND status = 'active' LIMIT 1 FOR UPDATE");
+        $active->execute([$targetId]);
+        if ($active->fetch()) throw new DomainException('Cancel active bookings before changing or removing this hall or shift.');
+        $occupied = $pdo->prepare("SELECT id FROM seats WHERE $where = ? AND status = 'occupied' LIMIT 1 FOR UPDATE");
+        $occupied->execute([$targetId]);
+        if ($occupied->fetch()) throw new DomainException('Release occupied seats before changing or removing this hall or shift.');
+    }
     
     // Get event settings for default values
     $settingsStmt = $pdo->prepare("SELECT setting_key, setting_value FROM event_settings WHERE is_public = 1");
@@ -29,8 +52,6 @@ try {
     
     // Debug logging
     error_log("API Action: " . $action);
-    error_log("GET params: " . print_r($_GET, true));
-    error_log("POST params: " . print_r($_POST, true));
     
     switch ($action) {
         // ===== CINEMA HALL FUNCTIONS =====
@@ -392,14 +413,12 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Invalid shift ID']);
                 exit;
             }
-            // Reassign all registrations to the 'Unassigned' shift (id=0)
-            $pdo->prepare("UPDATE registrations SET shift_id = 0 WHERE shift_id = ? AND status = 'active'")->execute([$shiftId]);
-            // Now allow deactivation regardless of registrations
+            // Keep historical booking assignments intact.
             $stmt = $pdo->prepare("UPDATE shifts SET is_active = 0 WHERE id = ?");
             $stmt->execute([$shiftId]);
             if ($stmt->rowCount() > 0) {
                 logAdminActivity('deactivate_shift', 'shifts', $shiftId);
-                echo json_encode(['success' => true, 'message' => 'Shift deactivated successfully (registrations reassigned to Unassigned)']);
+                echo json_encode(['success' => true, 'message' => 'Shift deactivated successfully']);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Shift not found']);
             }
@@ -466,11 +485,15 @@ try {
             echo json_encode(['success' => false, 'message' => 'Invalid action']);
             break;
     }
-    
+    if ($pdo->inTransaction()) $pdo->commit();
+    ob_end_flush();
+
 } catch (Exception $e) {
+    ob_end_clean();
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     // Log the detailed error for debugging
     error_log("Admin Hall/Shift API Error: " . $e->getMessage());
     // Provide a generic error message to the user
-    echo json_encode(['success' => false, 'message' => 'An unexpected error occurred. Please try again.']);
+    echo json_encode(['success' => false, 'message' => $e instanceof DomainException ? $e->getMessage() : 'An unexpected error occurred. Please try again.']);
 }
 ?> 

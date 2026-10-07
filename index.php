@@ -480,6 +480,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
             font-size: 0.9rem;
         }
     </style>
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body class="dark-theme">
     <!-- Header -->
@@ -547,7 +548,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                 <!-- Registration Form -->
                 <div class="registration-form-container">
                     <div class="employee-notice">
-                        👥 <strong>Employee Registration</strong> Enter your employee number to auto-fill your details and register for the movie night!
+                        <i class="fas fa-users ui-icon" aria-hidden="true"></i> <strong>Employee Registration</strong> Enter your employee number to auto-fill your details and register for the movie night!
                     </div>
                     
                     <div class="find-registration-notice">
@@ -605,7 +606,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                         <div class="form-group seat-selection-group" style="display: none;">
                             <label class="form-label">Select Your Seats *</label>
                             <div class="flexible-selection-info">
-                                <strong>🎯 Flexible Seat Selection:</strong> Click to select your seats. We prioritize side-by-side seating, but you can choose nearby seats if needed. The system will confirm your selection if seats aren't adjacent.
+                                <strong><i class="fas fa-bullseye ui-icon" aria-hidden="true"></i> Flexible Seat Selection:</strong> Click to select your seats. We prioritize side-by-side seating, but you can choose nearby seats if needed. The system will confirm your selection if seats aren't adjacent.
                             </div>
                             <div id="seatMap" class="seat-map">
                                 <!-- Seat map will be loaded dynamically -->
@@ -629,6 +630,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                                 </div>
                             </div>
                             <div id="selectedSeats" class="selected-seats-display"></div>
+                            <div id="seatRecommendation" class="seat-recommendation" hidden><p id="seatRecommendationText"></p><button type="button" class="button-secondary" onclick="useSeatRecommendation()">Use recommended seats</button></div>
                         </div>
 
                         <div class="form-group">
@@ -668,7 +670,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                         <h3 class="info-title">Enhanced Seat Selection</h3>
                         <div class="hall-assignment-info">
                             <div class="assignment-row">
-                                <span class="assignment-label">🎯 Flexible Selection:</span>
+                                <span class="assignment-label"><i class="fas fa-bullseye ui-icon" aria-hidden="true"></i> Flexible Selection:</span>
                                 <div class="assignment-shifts">
                                     <span>• Prioritizes side-by-side seating</span>
                                     <span>• Allows nearby seats when needed</span>
@@ -676,7 +678,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                                 </div>
                             </div>
                             <div class="assignment-row">
-                                <span class="assignment-label">⚠️ Smart Warnings:</span>
+                                <span class="assignment-label"><i class="fas fa-triangle-exclamation ui-icon" aria-hidden="true"></i> Smart Warnings:</span>
                                 <div class="assignment-shifts">
                                     <span>• Warns about potential seat gaps</span>
                                     <span>• Suggests better seating options</span>
@@ -691,7 +693,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                         <div class="hall-assignment-info" id="dynamic-hall-assignment">
                             <?php foreach ($halls as $hall): ?>
                             <div class="assignment-row">
-                                <span class="assignment-label"><?php echo $hall['id'] === 1 ? '🎬' : '🎭'; ?> <?php echo htmlspecialchars($hall['hall_name']); ?>:</span>
+                                <span class="assignment-label"><i class="fas <?php echo $hall['id'] === 1 ? 'fa-film' : 'fa-masks-theater'; ?> ui-icon" aria-hidden="true"></i> <?php echo htmlspecialchars($hall['hall_name']); ?>:</span>
                                 <div class="assignment-shifts">
                                     <?php
                                     // Get shifts for this hall
@@ -738,22 +740,22 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                 <div class="about-features">
                     <div class="feature-grid">
                         <div class="feature-item">
-                            <div class="feature-icon">🎭</div>
+                            <div class="feature-icon"><i class="fas fa-masks-theater ui-icon" aria-hidden="true"></i></div>
                             <h3>Premium Experience</h3>
                             <p>State-of-the-art cinema facilities with comfortable seating and superior sound quality</p>
                         </div>
                         <div class="feature-item">
-                            <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                            <div class="feature-icon"><i class="fas fa-users ui-icon" aria-hidden="true"></i></div>
                             <h3>Family Friendly</h3>
                             <p>Bring your family members and enjoy quality time together</p>
                         </div>
                         <div class="feature-item">
-                            <div class="feature-icon">🎁</div>
+                            <div class="feature-icon"><i class="fas fa-gift ui-icon" aria-hidden="true"></i></div>
                             <h3>Complimentary Treats</h3>
                             <p>Enjoy free popcorn, beverages, and movie theater snacks during the screening</p>
                         </div>
                         <div class="feature-item">
-                            <div class="feature-icon">🤝</div>
+                            <div class="feature-icon"><i class="fas fa-handshake ui-icon" aria-hidden="true"></i></div>
                             <h3>Open Community</h3>
                             <p>Connect with others in a relaxed, fun environment</p>
                         </div>
@@ -796,7 +798,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                 <button type="button" class="modal-close" onclick="closeModal('successModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="success-icon">✅</div>
+                <div class="success-icon"><i class="fas fa-circle-check ui-icon" aria-hidden="true"></i></div>
                 <p>Your registration has been completed successfully.</p>
                 <div id="registrationDetails"></div>
             </div>
@@ -814,7 +816,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                 <button type="button" class="modal-close" onclick="closeModal('errorModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="error-icon">❌</div>
+                <div class="error-icon"><i class="fas fa-circle-xmark ui-icon" aria-hidden="true"></i></div>
                 <p id="errorMessage">An error occurred during registration.</p>
             </div>
             <div class="modal-footer">
@@ -827,16 +829,17 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
     <div id="nonAdjacentModal" class="non-adjacent-modal">
         <div class="non-adjacent-content">
             <div class="non-adjacent-header">
-                <h3>⚠️ Non-Adjacent Seats</h3>
+                <h3><i class="fas fa-triangle-exclamation ui-icon" aria-hidden="true"></i> Non-Adjacent Seats</h3>
             </div>
             <div class="non-adjacent-body">
-                <p>Some of your seats are not side-by-side. Do you want to continue with this selection?</p>
+                <p id="nonAdjacentMessage">Some of your seats are not side-by-side.</p>
                 <div class="selected-seats-preview">
                     <h4>Your Selected Seats:</h4>
                     <div class="seats-preview-list" id="nonAdjacentSeatsPreview">
                         <!-- Dynamic seat preview will be inserted here -->
                     </div>
                 </div>
+                <div class="seat-recommendation" data-warning-recommendation hidden><p></p><button type="button" class="button-secondary" onclick="useSeatRecommendation()">Use recommended seats</button></div>
                 <div class="non-adjacent-actions">
                     <button class="non-adjacent-btn confirm" onclick="confirmNonAdjacentSelection()">Yes, Continue</button>
                     <button class="non-adjacent-btn cancel" onclick="cancelNonAdjacentSelection()">No, Choose Again</button>
@@ -849,10 +852,11 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
     <div id="gapWarningModal" class="gap-warning-modal">
         <div class="gap-warning-content">
             <div class="gap-warning-header">
-                <h3>⚠️ Gap Warning</h3>
+                <h3><i class="fas fa-triangle-exclamation ui-icon" aria-hidden="true"></i> Gap Warning</h3>
             </div>
             <div class="gap-warning-body">
                 <p id="gapWarningMessage">This selection may leave a single-seat gap between reservations. Are you sure you want to continue?</p>
+                <div class="seat-recommendation" data-warning-recommendation hidden><p></p><button type="button" class="button-secondary" onclick="useSeatRecommendation()">Use recommended seats</button></div>
                 <div class="gap-warning-actions">
                     <button class="gap-warning-btn confirm" onclick="confirmGapSelection()">Yes, Continue</button>
                     <button class="gap-warning-btn cancel" onclick="cancelGapSelection()">Cancel</button>
@@ -861,6 +865,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         </div>
     </div>
 
+    <script src="assets/seat-selection.js"></script>
     <script>
         // Configuration
         const shiftsData = <?php echo json_encode($shifts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -876,6 +881,10 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         let allSeats = [];
         let seatMap = {};
         let pendingGapSeat = null;
+        let pendingWarning = null;
+        let selectionBeforeWarning = [];
+        const acceptedSeatWarnings = new Set();
+        let recommendedSeats = [];
         let pendingNonAdjacentSelection = false;
 
         // DOM Elements
@@ -933,10 +942,10 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                     // Show assigned hall
                     const hall = hallsData.find(h => h.id == hallId);
                     const hallName = hall ? hall.hall_name : `Cinema Hall ${hallId}`;
-                    const hallIcon = hallId === 1 ? '🎬' : '🎭';
+                    const hallIcon = hallId === 1 ? 'fa-film' : 'fa-masks-theater';
                     assignedHall.innerHTML = `
                         <div class="hall-info">
-                            <span class="hall-icon">${hallIcon}</span>
+                            <span class="hall-icon"><i class="fas ${hallIcon} ui-icon" aria-hidden="true"></i></span>
                             <div class="hall-details">
                                 <strong>${hallName}</strong>
                                 <p>Automatically assigned for ${shiftName} (Max ${MAX_ATTENDEES} attendees)</p>
@@ -1045,10 +1054,10 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                     // Show assigned hall
                     const hall = hallsData.find(h => h.id == hallId);
                     const hallName = hall ? hall.hall_name : `Cinema Hall ${hallId}`;
-                    const hallIcon = hallId === 1 ? '🎬' : '🎭';
+                    const hallIcon = hallId === 1 ? 'fa-film' : 'fa-masks-theater';
                     assignedHall.innerHTML = `
                         <div class="hall-info">
-                            <span class="hall-icon">${hallIcon}</span>
+                            <span class="hall-icon"><i class="fas ${hallIcon} ui-icon" aria-hidden="true"></i></span>
                             <div class="hall-details">
                                 <strong>${hallName}</strong>
                                 <p>Automatically assigned for ${shiftName} (Max ${MAX_ATTENDEES} attendees)</p>
@@ -1165,254 +1174,110 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
             updateSelectedSeatsDisplay();
         }
 
-        function handleSeatClick(clickedSeat) {
-            const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
-            
-            if (attendeeCount === 0) {
-                showError('Please select the number of attendees first');
-                return;
-            }
-
-            // Check if seat is already selected
-            const seatIndex = selectedSeats.findIndex(s => s.id === clickedSeat.id);
-            if (seatIndex > -1) {
-                // Deselect seat
-                selectedSeats.splice(seatIndex, 1);
-                updateSeatDisplay();
-                updateSelectedSeatsDisplay();
-                updateSubmitButtonState();
-                return;
-            }
-
-            // Check if we can add more seats
-            if (selectedSeats.length >= attendeeCount) {
-                showError(`You can only select ${attendeeCount} seat(s).`);
-                return;
-            }
-
-            // Add seat to selection
-            selectedSeats.push(clickedSeat);
-            
-            // Check if selection is complete
-            if (selectedSeats.length === attendeeCount) {
-                // Check for gaps first
-                const gapCheck = checkSingleGap(selectedSeats);
-                if (gapCheck.hasGap) {
-                    // Remove the last seat temporarily
-                    pendingGapSeat = selectedSeats.pop();
-                    showGapWarning(gapCheck.message);
-                    return;
-                }
-                
-                // Check if seats are adjacent (side-by-side or nearby)
-                if (!areSeatsAdjacent(selectedSeats)) {
-                    // Show non-adjacent confirmation
-                    showNonAdjacentModal();
-                    return;
-                }
-            }
-            
+        function refreshSelection() {
             updateSeatDisplay();
             updateSelectedSeatsDisplay();
             updateSubmitButtonState();
         }
 
-        // Enhanced adjacency check - more flexible
-        function areSeatsAdjacent(seats) {
-            if (seats.length <= 1) return true;
-            
-            // Check if all seats are side-by-side in the same row
-            const sameRowSeats = seats.filter(seat => seat.row_letter === seats[0].row_letter);
-            if (sameRowSeats.length === seats.length) {
-                // All in same row - check if they're consecutive
-                const positions = sameRowSeats.map(s => parseInt(s.seat_position)).sort((a, b) => a - b);
-                for (let i = 1; i < positions.length; i++) {
-                    if (positions[i] - positions[i-1] > 2) { // Allow 1 seat gap
-                        return false;
-                    }
-                }
-                return true;
-            }
-            
-            // Check if seats are in adjacent rows and nearby positions
-            const rowLetters = [...new Set(seats.map(s => s.row_letter))].sort();
-            if (rowLetters.length <= 2) {
-                // Check if rows are adjacent
-                if (rowLetters.length === 2) {
-                    const rowDiff = Math.abs(rowLetters[1].charCodeAt(0) - rowLetters[0].charCodeAt(0));
-                    if (rowDiff <= 1) {
-                        // Rows are adjacent, check if positions are nearby
-                        const positions = seats.map(s => parseInt(s.seat_position));
-                        const minPos = Math.min(...positions);
-                        const maxPos = Math.max(...positions);
-                        return (maxPos - minPos) <= 3; // Allow some spread
-                    }
-                }
-                return true; // Single row or close rows
-            }
-            
-            return false; // Too spread out
-        }
-
-        // Check for single-seat gaps (more flexible)
-        function checkSingleGap(seats) {
-            // Group seats by row
-            const seatsByRow = {};
-            seats.forEach(seat => {
-                if (!seatsByRow[seat.row_letter]) {
-                    seatsByRow[seat.row_letter] = [];
-                }
-                seatsByRow[seat.row_letter].push(parseInt(seat.seat_position));
-            });
-            // Check each row for gaps
-            for (const [row, positions] of Object.entries(seatsByRow)) {
-                if (positions.length < 2) continue;
-                positions.sort((a, b) => a - b);
-                // Check for single-seat gaps between selected seats
-                for (let i = 0; i < positions.length - 1; i++) {
-                    const gap = positions[i + 1] - positions[i];
-                    if (gap === 2) {
-                        // There's a single seat gap
-                        const gapPosition = positions[i] + 1;
-                        const gapSeat = allSeats.find(s => 
-                            s.row_letter === row && 
-                            parseInt(s.seat_position) === gapPosition && 
-                            s.status === 'available'
-                        );
-                        if (gapSeat) {
-                            return {
-                                hasGap: true,
-                                message: `This selection would leave seat ${row}${gapPosition} isolated between your selected seats. This may make it difficult for other guests to book. Are you sure you want to continue?`
-                            };
-                        }
-                    }
-                }
-                // --- New: Check for single-seat gap at the start of the block ---
-                const minPos = positions[0];
-                const beforePos = minPos - 1;
-                const beforeSeat = allSeats.find(s => 
-                    s.row_letter === row && 
-                    parseInt(s.seat_position) === beforePos && 
-                    s.status === 'available'
-                );
-                if (beforeSeat) {
-                    // Check that the seat after the gap is not also available (to avoid double warning)
-                    if (!positions.includes(beforePos)) {
-                        return {
-                            hasGap: true,
-                            message: `This selection would leave seat ${row}${beforePos} isolated at the start of the row. This may make it difficult for other guests to book. Are you sure you want to continue?`
-                        };
-                    }
-                }
-                // --- New: Check for single-seat gap at the end of the block ---
-                const maxPos = positions[positions.length - 1];
-                const afterPos = maxPos + 1;
-                const afterSeat = allSeats.find(s => 
-                    s.row_letter === row && 
-                    parseInt(s.seat_position) === afterPos && 
-                    s.status === 'available'
-                );
-                if (afterSeat) {
-                    if (!positions.includes(afterPos)) {
-                        return {
-                            hasGap: true,
-                            message: `This selection would leave seat ${row}${afterPos} isolated at the end of the row. This may make it difficult for other guests to book. Are you sure you want to continue?`
-                        };
-                    }
-                }
-            }
-            return { hasGap: false };
-        }
-
-        // Show non-adjacent selection modal
-        function showNonAdjacentModal() {
-            const modal = document.getElementById('nonAdjacentModal');
-            const previewContainer = document.getElementById('nonAdjacentSeatsPreview');
-            
-            // Show selected seats
-            const seatNumbers = selectedSeats
-                .sort((a, b) => {
-                    if (a.row_letter !== b.row_letter) {
-                        return a.row_letter.localeCompare(b.row_letter);
-                    }
-                    return parseInt(a.seat_position) - parseInt(b.seat_position);
-                })
-                .map(seat => seat.seat_number);
-            
-            previewContainer.innerHTML = seatNumbers
-                .map(seat => `<div class="preview-seat">${seat}</div>`)
-                .join('');
-            
-            modal.style.display = 'flex';
+        function evaluateSeatSelection(previous) {
+            const count = Number(attendeeCountSelect.value);
+            const issue = SeatSelection.issues(allSeats, selectedSeats, count).find(problem => !acceptedSeatWarnings.has(problem.key));
+            if (!issue) { refreshSelection(); return; }
+            selectionBeforeWarning = previous.slice();
+            pendingWarning = issue;
             pendingNonAdjacentSelection = true;
+            if (issue.type === 'gap') showGapWarning(issue.message);
+            else showNonAdjacentModal(issue.message);
+            refreshSelection();
         }
 
-        // Confirm non-adjacent selection
-        function confirmNonAdjacentSelection() {
-            pendingNonAdjacentSelection = false;
-            closeNonAdjacentModal();
-            updateSeatDisplay();
-            updateSelectedSeatsDisplay();
-            updateSubmitButtonState();
-        }
-
-        // Cancel non-adjacent selection
-        function cancelNonAdjacentSelection() {
-            // Remove the last selected seat(s) to allow re-selection
-            selectedSeats = [];
-            pendingNonAdjacentSelection = false;
-            closeNonAdjacentModal();
-            updateSeatDisplay();
-            updateSelectedSeatsDisplay();
-            updateSubmitButtonState();
-        }
-
-        // Close non-adjacent modal
-        function closeNonAdjacentModal() {
-            document.getElementById('nonAdjacentModal').style.display = 'none';
-        }
-
-        // Show gap warning modal
-        function showGapWarning(message) {
-            const modal = document.getElementById('gapWarningModal');
-            const messageEl = document.getElementById('gapWarningMessage');
-            messageEl.textContent = message;
-            modal.style.display = 'flex';
-        }
-
-        // Confirm gap selection
-        function confirmGapSelection() {
-            if (pendingGapSeat) {
-                selectedSeats.push(pendingGapSeat);
-                
-                // Check if this completes the selection and if it's non-adjacent
-                const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
-                if (selectedSeats.length === attendeeCount && !areSeatsAdjacent(selectedSeats)) {
-                    showNonAdjacentModal();
-                    closeGapWarning();
-                    return;
-                }
-                
-                updateSeatDisplay();
-                updateSelectedSeatsDisplay();
-                updateSubmitButtonState();
-                pendingGapSeat = null;
+        function handleSeatClick(clickedSeat) {
+            if (pendingWarning) return;
+            const count = Number(attendeeCountSelect.value);
+            if (!count) { showError('Please select the number of attendees first'); return; }
+            const current = allSeats.find(seat => seat.seat_number === clickedSeat.seat_number);
+            if (!current || current.status !== 'available') { showError('This seat is no longer available.'); return; }
+            const previous = selectedSeats.slice();
+            const index = selectedSeats.findIndex(seat => seat.seat_number === current.seat_number);
+            if (index >= 0) {
+                selectedSeats.splice(index, 1);
+                acceptedSeatWarnings.clear();
+            } else {
+                if (selectedSeats.length >= count) { showError('You can only select '+count+' seats.'); return; }
+                selectedSeats.push(current);
             }
-            closeGapWarning();
+            evaluateSeatSelection(previous);
         }
 
-        // Cancel gap selection
-        function cancelGapSelection() {
+        function areSeatsAdjacent(seats) { return SeatSelection.adjacent(seats); }
+        function checkSingleGap(seats) {
+            const gaps = SeatSelection.gaps(allSeats,seats);
+            return {hasGap: gaps.length > 0, message: gaps.length ? 'Seat '+gaps[0].seat_number+' would be left alone.' : ''};
+        }
+
+        function showNonAdjacentModal(message) {
+            document.getElementById('nonAdjacentMessage').textContent = message;
+            document.getElementById('nonAdjacentSeatsPreview').textContent = selectedSeats.map(seat => seat.seat_number).join(', ');
+            document.getElementById('nonAdjacentModal').style.display = 'flex';
+        }
+        function showGapWarning(message) {
+            document.getElementById('gapWarningMessage').textContent = message;
+            document.getElementById('gapWarningModal').style.display = 'flex';
+        }
+        function closeNonAdjacentModal() { document.getElementById('nonAdjacentModal').style.display = 'none'; }
+        function closeGapWarning() { document.getElementById('gapWarningModal').style.display = 'none'; }
+        function dismissSeatWarnings() {
+            pendingWarning = null;
             pendingGapSeat = null;
+            pendingNonAdjacentSelection = false;
             closeGapWarning();
+            closeNonAdjacentModal();
+        }
+        function acceptSeatWarning() {
+            if (!pendingWarning) return;
+            acceptedSeatWarnings.add(pendingWarning.key);
+            const previous = selectionBeforeWarning.slice();
+            dismissSeatWarnings();
+            evaluateSeatSelection(previous);
+        }
+        function cancelSeatWarning() {
+            selectedSeats = selectionBeforeWarning.slice();
+            dismissSeatWarnings();
+            refreshSelection();
+        }
+        function confirmGapSelection() { acceptSeatWarning(); }
+        function confirmNonAdjacentSelection() { acceptSeatWarning(); }
+        function cancelGapSelection() { cancelSeatWarning(); }
+        function cancelNonAdjacentSelection() { cancelSeatWarning(); }
+
+        function useSeatRecommendation() {
+            if (!recommendedSeats.length) return;
+            const previous = selectedSeats.slice();
+            selectedSeats = recommendedSeats.slice();
+            acceptedSeatWarnings.clear();
+            dismissSeatWarnings();
+            evaluateSeatSelection(previous);
         }
 
-        // Close gap warning modal
-        function closeGapWarning() {
-            document.getElementById('gapWarningModal').style.display = 'none';
+        function updateSeatRecommendation() {
+            const count = Number(attendeeCountSelect.value);
+            recommendedSeats = SeatSelection.recommend(allSeats, selectedSeats, count);
+            const same = recommendedSeats.length === selectedSeats.length && recommendedSeats.every(seat => selectedSeats.some(chosen => chosen.seat_number === seat.seat_number));
+            const visible = count > 0 && recommendedSeats.length > 0 && !same;
+            const labels = recommendedSeats.map(seat => seat.seat_number).join(', ');
+            const text = 'Recommended group: '+labels+'. '+(recommendedSeats.every(seat => selectedSeats.some(chosen => chosen.seat_number === seat.seat_number)) ? '' : 'Seats together for all '+count+' attendees.');
+            document.getElementById('seatRecommendation').hidden = !visible;
+            document.getElementById('seatRecommendationText').textContent = text;
+            document.querySelectorAll('[data-warning-recommendation]').forEach(panel => {
+                panel.hidden = !visible;
+                panel.querySelector('p').textContent = text;
+            });
         }
 
         function clearSeatSelections() {
+            acceptedSeatWarnings.clear();
+            dismissSeatWarnings();
             selectedSeats = [];
             
             // Remove all selection classes
@@ -1443,36 +1308,15 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         }
 
         function suggestAdjacentSeats() {
-            const lastSeat = selectedSeats[selectedSeats.length - 1];
-            const row = lastSeat.row_letter;
-            const position = parseInt(lastSeat.seat_position);
-            
-            // Suggest seats adjacent to the last selected seat
-            const adjacentPositions = [
-                { row: row, position: position - 1 },
-                { row: row, position: position + 1 },
-                { row: String.fromCharCode(row.charCodeAt(0) - 1), position: position },
-                { row: String.fromCharCode(row.charCodeAt(0) + 1), position: position }
-            ];
-            
-            adjacentPositions.forEach(pos => {
-                const seat = allSeats.find(s => 
-                    s.row_letter === pos.row && 
-                    parseInt(s.seat_position) === pos.position && 
-                    s.status === 'available' &&
-                    !selectedSeats.some(selected => selected.id === s.id)
-                );
-                
-                if (seat) {
-                    const seatElement = document.querySelector(`[data-seat-id="${seat.id}"]`);
-                    if (seatElement) {
-                        seatElement.classList.add('suggested');
-                    }
-                }
+            const group = SeatSelection.recommend(allSeats,selectedSeats,Number(attendeeCountSelect.value));
+            group.filter(seat => !selectedSeats.some(chosen => chosen.seat_number === seat.seat_number)).forEach(seat => {
+                const element = document.querySelector('[data-seat-id="'+seat.id+'"]');
+                if (element) element.classList.add('suggested');
             });
         }
 
         function updateSelectedSeatsDisplay() {
+            updateSeatRecommendation();
             if (selectedSeats.length === 0) {
                 selectedSeatsDisplay.innerHTML = '<p class="no-seats">No seats selected</p>';
             } else {
@@ -1495,6 +1339,8 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         }
 
         function resetSeatSelection() {
+            acceptedSeatWarnings.clear();
+            dismissSeatWarnings();
             selectedSeats = [];
             seatSelectionGroup.style.display = 'none';
             seatMapElement.innerHTML = '';
@@ -1514,12 +1360,12 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
                            attendeeCount > 0 && 
                            selectedSeats.length === attendeeCount && 
                            termsAccepted &&
-                           !pendingNonAdjacentSelection;
+                           !pendingNonAdjacentSelection && !pendingGapSeat;
             
             submitButton.disabled = !isValid;
         }
 
-        function handleFormSubmission(e) {
+        async function handleFormSubmission(e) {
             e.preventDefault();
             
             if (!validateForm()) {
@@ -1528,6 +1374,31 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
             
             showLoading(true);
             
+            try {
+                const response = await fetch('api.php', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:new URLSearchParams({action:'get_seats', hall_id:currentHallId, shift_id:currentShiftId, csrf_token:csrfToken})});
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'Unable to refresh seat availability.');
+                const previous = selectedSeats.slice();
+                allSeats = result.seats;
+                selectedSeats = previous.map(chosen => allSeats.find(seat => seat.seat_number === chosen.seat_number && seat.status === 'available')).filter(Boolean);
+                const current = selectedSeats.slice();
+                buildSeatMap(allSeats);
+                renderSeatMap(allSeats);
+                selectedSeats = current;
+                refreshSelection();
+                if (current.length !== previous.length) {
+                    acceptedSeatWarnings.clear();
+                    showLoading(false);
+                    showError('Some selected seats were taken. Available selections were kept; choose the remaining seats or use the recommendation.');
+                    return;
+                }
+                evaluateSeatSelection(previous);
+                if (pendingWarning) { showLoading(false); return; }
+            } catch (error) {
+                showLoading(false);
+                showError(error.message || 'Unable to refresh seat availability. Please try again.');
+                return;
+            }
             const formData = new FormData(form);
             formData.append('action', 'register');
             formData.append('selected_seats', JSON.stringify(selectedSeats.map(seat => seat.seat_number)));
@@ -1560,6 +1431,7 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
         }
 
         function validateForm() {
+            if (pendingNonAdjacentSelection || pendingGapSeat) return false;
             const empNumber = document.getElementById('emp_number').value.trim();
             const staffName = document.getElementById('staff_name').value.trim();
             const attendeeCount = parseInt(attendeeCountSelect.value) || 0;
@@ -1647,9 +1519,11 @@ $footerText = $settings['footer_text'] ?? "© 2025 {$companyName} – Internal M
 
         // Close modals when clicking outside
         window.addEventListener('click', function(e) {
-            if (e.target.classList.contains('modal') || 
-                e.target.classList.contains('non-adjacent-modal') ||
-                e.target.classList.contains('gap-warning-modal')) {
+            if (e.target.classList.contains('non-adjacent-modal')) {
+                cancelNonAdjacentSelection();
+            } else if (e.target.classList.contains('gap-warning-modal')) {
+                cancelGapSelection();
+            } else if (e.target.classList.contains('modal')) {
                 e.target.style.display = 'none';
             }
         });

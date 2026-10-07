@@ -281,13 +281,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       text-decoration: none !important;
     }
     </style>
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body>
     <div class="container">
         <div class="find-registration-container">
             <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
                 <a href="index.php" class="btn btn-secondary">
-                    🔙 Back to Registration
+                    <i class="fas fa-arrow-left ui-icon" aria-hidden="true"></i> Back to Registration
                 </a>
             </div>
             <div class="find-registration-header">

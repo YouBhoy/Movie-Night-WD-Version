@@ -1,23 +1,18 @@
 <?php
-session_start();
 require_once 'config.php';
 
-// Handle AJAX save_layout before any HTML output
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_layout') {
+// Reject every write before any database access, including AJAX layout saves.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') requireAdminApi(true);
+if (!isAdminLoggedIn()) {
+    header('Location: admin-login.php');
+    exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_layout') {
     $pdo = getDBConnection();
     $message = '';
     $messageType = '';
     handleSaveLayout($pdo);
-    echo json_encode([
-        'success' => ($messageType === 'success'),
-        'message' => $message
-    ]);
-    exit;
-}
-
-// Check if user is logged in as admin
-if (!isAdminLoggedIn()) {
-    header('Location: admin-login.php');
+    echo json_encode(['success' => $messageType === 'success', 'message' => $message]);
     exit;
 }
 
@@ -27,7 +22,7 @@ $messageType = '';
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!validateAdminCSRFToken($_POST['admin_csrf_token'] ?? '')) {
         $message = "Security validation failed. Please try again.";
         $messageType = "error";
     } else {
@@ -44,6 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    echo json_encode(['success' => $messageType === 'success', 'message' => $message]);
+    exit;
+}
+
 function handleSaveLayout($pdo) {
     global $message, $messageType;
     
@@ -53,16 +53,41 @@ function handleSaveLayout($pdo) {
         $seatsData = $_POST['seats'] ?? '';
         
         if (!$hallId || !$shiftId) {
-            throw new Exception('Invalid hall or shift ID');
+            throw new DomainException('Invalid hall or shift ID');
         }
         
         $seats = json_decode($seatsData, true);
         if (!is_array($seats)) {
-            throw new Exception('Invalid seat data format');
+            throw new DomainException('Invalid seat data format');
         }
         
         $pdo->beginTransaction();
         
+        // Serialize layout changes with bookings and cancellation.
+        $lock = $pdo->prepare('SELECT id FROM cinema_halls WHERE id = ? FOR UPDATE');
+        $lock->execute([$hallId]);
+        if (!$lock->fetch()) throw new DomainException('Hall not found');
+        $lock = $pdo->prepare('SELECT id FROM shifts WHERE id = ? AND hall_id = ? FOR UPDATE');
+        $lock->execute([$shiftId, $hallId]);
+        if (!$lock->fetch()) throw new DomainException('Invalid hall and shift combination');
+        $bookings = $pdo->prepare("SELECT id FROM registrations WHERE hall_id = ? AND shift_id = ? AND status = 'active' LIMIT 1 FOR UPDATE");
+        $bookings->execute([$hallId, $shiftId]);
+        if ($bookings->fetch()) throw new DomainException('Cancel active bookings before replacing this layout.');
+        $currentSeats = $pdo->prepare("SELECT id FROM seats WHERE hall_id = ? AND shift_id = ? AND status = 'occupied' LIMIT 1 FOR UPDATE");
+        $currentSeats->execute([$hallId, $shiftId]);
+        if ($currentSeats->fetch()) throw new DomainException('Occupied seats must be released before replacing this layout.');
+        $numbers = [];
+        foreach ($seats as $seat) {
+            if (!is_array($seat) || !is_string($seat['row_letter'] ?? null) || !preg_match('/^[A-Z]$/', $seat['row_letter']) ||
+                !filter_var($seat['seat_position'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ||
+                !is_string($seat['seat_number'] ?? null) || $seat['seat_number'] === '' || strlen($seat['seat_number']) > 10 ||
+                !in_array($seat['status'] ?? '', ['available', 'blocked', 'reserved'], true) ||
+                isset($numbers[$seat['seat_number']])) {
+                throw new DomainException('Invalid or duplicate seat data. Occupied status is managed by bookings.');
+            }
+            $numbers[$seat['seat_number']] = true;
+        }
+
         // Delete all existing seats for this hall and shift
         $deleteStmt = $pdo->prepare("DELETE FROM seats WHERE hall_id = ? AND shift_id = ?");
         $deleteStmt->execute([$hallId, $shiftId]);
@@ -92,12 +117,12 @@ function handleSaveLayout($pdo) {
             'seats_count' => count($seats)
         ]);
         
-        $message = "Seat layout saved successfully! ✅";
+        $message = "Seat layout saved successfully.";
         $messageType = "success";
         
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        $message = "Error saving layout: " . $e->getMessage();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        $message = $e instanceof DomainException ? $e->getMessage() : 'Unable to save the layout. Please try again.';
         $messageType = "error";
         error_log("Save layout error: " . $e->getMessage());
     }
@@ -110,23 +135,23 @@ function handleDeleteSeat($pdo) {
         $seatId = filter_var($_POST['seat_id'] ?? '', FILTER_VALIDATE_INT);
         
         if (!$seatId) {
-            throw new Exception('Invalid seat ID');
+            throw new DomainException('Invalid seat ID');
         }
         
-        $deleteStmt = $pdo->prepare("DELETE FROM seats WHERE id = ?");
+        $deleteStmt = $pdo->prepare("DELETE FROM seats WHERE id = ? AND status != 'occupied'");
         $deleteStmt->execute([$seatId]);
         
         if ($deleteStmt->rowCount() > 0) {
             logAdminActivity('delete_seat', 'seats', $seatId);
-            $message = "Seat deleted successfully! ✅";
+            $message = "Seat deleted successfully.";
             $messageType = "success";
         } else {
-            $message = "Seat not found";
+            $message = "Seat not found or occupied";
             $messageType = "error";
         }
         
     } catch (Exception $e) {
-        $message = "Error deleting seat: " . $e->getMessage();
+        $message = $e instanceof DomainException ? $e->getMessage() : 'Unable to delete the seat. Please try again.';
         $messageType = "error";
         error_log("Delete seat error: " . $e->getMessage());
     }
@@ -143,17 +168,20 @@ function handleAddSeat($pdo) {
         $status = sanitizeInput($_POST['status'] ?? 'available');
         
         if (!$hallId || !$shiftId || !$rowLetter || !$seatPosition) {
-            throw new Exception('All fields are required');
+            throw new DomainException('All fields are required');
         }
         
         if (!preg_match('/^[A-Z]$/', $rowLetter)) {
-            throw new Exception('Row letter must be A-Z');
+            throw new DomainException('Row letter must be A-Z');
         }
         
         if ($seatPosition < 1) {
-            throw new Exception('Seat position must be positive');
+            throw new DomainException('Seat position must be positive');
         }
         
+        if (!in_array($status, ['available', 'blocked', 'reserved'], true)) {
+            throw new DomainException('Invalid seat status. Occupied status is managed by bookings.');
+        }
         $seatNumber = $rowLetter . $seatPosition;
         
         // Check if seat already exists
@@ -161,7 +189,7 @@ function handleAddSeat($pdo) {
         $checkStmt->execute([$hallId, $shiftId, $seatNumber]);
         
         if ($checkStmt->rowCount() > 0) {
-            throw new Exception('Seat ' . $seatNumber . ' already exists');
+            throw new DomainException('Seat ' . $seatNumber . ' already exists');
         }
         
         $insertStmt = $pdo->prepare("
@@ -177,11 +205,11 @@ function handleAddSeat($pdo) {
             'seat_number' => $seatNumber
         ]);
         
-        $message = "Seat " . $seatNumber . " added successfully! ✅";
+        $message = "Seat " . $seatNumber . " added successfully.";
         $messageType = "success";
         
     } catch (Exception $e) {
-        $message = "Error adding seat: " . $e->getMessage();
+        $message = $e instanceof DomainException ? $e->getMessage() : 'Unable to add the seat. Please try again.';
         $messageType = "error";
         error_log("Add seat error: " . $e->getMessage());
     }
@@ -703,7 +731,11 @@ $csrfToken = generateAdminCSRFToken();
             const seat = currentSeats.find(s => s.id == seatId);
             if (!seat) return;
 
-            const statuses = ['available', 'occupied', 'blocked', 'reserved'];
+            if (seat.status === 'occupied') {
+                alert('Occupied seats are managed by bookings. Cancel the booking first.');
+                return;
+            }
+            const statuses = ['available', 'blocked', 'reserved'];
             const currentIndex = statuses.indexOf(seat.status);
             const nextIndex = (currentIndex + 1) % statuses.length;
             
@@ -738,8 +770,9 @@ $csrfToken = generateAdminCSRFToken();
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=delete_seat&seat_id=${seatId}&admin_csrf_token=${csrfToken}`
             })
-            .then(response => response.text())
-            .then(() => {
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) throw new Error(data.message || 'Seat could not be deleted');
                 // Remove from current seats
                 currentSeats = currentSeats.filter(s => s.id != seatId);
                 renderSeatGrid();
@@ -748,7 +781,7 @@ $csrfToken = generateAdminCSRFToken();
             })
             .catch(error => {
                 console.error('Error deleting seat:', error);
-                alert('Error deleting seat');
+                alert(error.message || 'Error deleting seat');
             });
         }
 
@@ -825,10 +858,11 @@ $csrfToken = generateAdminCSRFToken();
             fetch('seat-layout-editor.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `action=add_seat&hall_id=${currentHallId}&shift_id=${currentShiftId}&row_letter=${rowLetter}&seat_position=${seatPosition}&status=${status}&csrf_token=${csrfToken}`
+                body: `action=add_seat&hall_id=${currentHallId}&shift_id=${currentShiftId}&row_letter=${rowLetter}&seat_position=${seatPosition}&status=${status}&admin_csrf_token=${csrfToken}`
             })
-            .then(response => response.text())
-            .then(() => {
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) throw new Error(data.message || 'Seat could not be added');
                 // Clear form
                 newRowLetter.value = '';
                 newSeatPosition.value = '';
@@ -838,7 +872,7 @@ $csrfToken = generateAdminCSRFToken();
             })
             .catch(error => {
                 console.error('Error adding seat:', error);
-                alert('Error adding seat');
+                alert(error.message || 'Error adding seat');
             });
         }
 
@@ -1068,7 +1102,7 @@ $csrfToken = generateAdminCSRFToken();
             const formData = new FormData();
             formData.append('action', 'deactivate_hall');
             formData.append('hall_id', hallId);
-            formData.append('csrf_token', csrfToken);
+            formData.append('admin_csrf_token', csrfToken);
 
             fetch('admin-hall-shift-api.php', {
                 method: 'POST',
@@ -1097,7 +1131,7 @@ $csrfToken = generateAdminCSRFToken();
             const hallId = document.getElementById('hallId').value;
             const action = hallId ? 'update_hall' : 'add_hall';
             formData.append('action', action);
-            formData.append('csrf_token', csrfToken);
+            formData.append('admin_csrf_token', csrfToken);
 
             fetch('admin-hall-shift-api.php', {
                 method: 'POST',
@@ -1243,7 +1277,7 @@ $csrfToken = generateAdminCSRFToken();
             const formData = new FormData();
             formData.append('action', 'deactivate_shift');
             formData.append('shift_id', shiftId);
-            formData.append('csrf_token', csrfToken);
+            formData.append('admin_csrf_token', csrfToken);
 
             fetch('admin-hall-shift-api.php', {
                 method: 'POST',
@@ -1272,7 +1306,7 @@ $csrfToken = generateAdminCSRFToken();
             const shiftId = document.getElementById('shiftId').value;
             const action = shiftId ? 'update_shift' : 'add_shift';
             formData.append('action', action);
-            formData.append('csrf_token', csrfToken);
+            formData.append('admin_csrf_token', csrfToken);
 
             fetch('admin-hall-shift-api.php', {
                 method: 'POST',

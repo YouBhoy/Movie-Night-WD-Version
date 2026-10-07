@@ -2,7 +2,6 @@
 require_once 'config.php';
 
 // Simple admin authentication check
-session_start();
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header('Location: admin.php');
     exit;

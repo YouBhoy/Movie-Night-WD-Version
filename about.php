@@ -157,11 +157,13 @@ if (!isset($_SESSION['admin'])) {
             background: #c82333;
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="icons.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎬 Admin Dashboard</h1>
+            <h1><i class="fas fa-film ui-icon" aria-hidden="true"></i> Admin Dashboard</h1>
             <a href="logout.php" class="logout-btn">Logout</a>
         </div>
         
