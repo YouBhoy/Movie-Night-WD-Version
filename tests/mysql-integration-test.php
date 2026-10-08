@@ -131,4 +131,24 @@ verify($result['success'] && (int)$pdo->query('SELECT COUNT(*) FROM seats')->fet
 $result = endpoint('seat-layout-editor.php',['action'=>'add_seat','hall_id'=>1,'shift_id'=>1,'row_letter'=>'A','seat_position'=>2,'status'=>'available']);
 verify($result['success'], 'Admin seat addition accepts the consistent CSRF field');
 
+// Exercise the real settings endpoint and verify failed requests never write.
+foreach (['', '0', '11', '-1', '1.5', '1e1', 'abc', ['3']] as $invalid) {
+    $response = endpoint('admin.php', ['action'=>'update_event_setting', 'setting_key'=>'max_attendees', 'setting_value'=>$invalid]);
+    verify(!$response['success'] && $pdo->query("SELECT setting_value FROM event_settings WHERE setting_key='max_attendees'")->fetchColumn() === '3', 'Invalid attendee limit preserves the saved value');
+}
+foreach (['1', '10', ' 3 '] as $valid) {
+    $response = endpoint('admin.php', ['action'=>'update_event_setting', 'setting_key'=>'max_attendees', 'setting_value'=>$valid]);
+    verify($response['success'] && $pdo->query("SELECT setting_value FROM event_settings WHERE setting_key='max_attendees'")->fetchColumn() === trim($valid), 'Valid attendee limits include both boundaries and trim surrounding spaces');
+}
+$response = endpoint('admin.php', ['action'=>'update_event_setting', 'setting_key'=>'venue_name', 'setting_value'=>'  Test Cinema  ']);
+verify($response['success'] && $pdo->query("SELECT setting_value FROM event_settings WHERE setting_key='movie_location'")->fetchColumn() === 'Test Cinema', 'Legacy venue alias saves the canonical location as trimmed text');
+foreach (['   ', str_repeat('x', 256)] as $invalid) {
+    $response = endpoint('admin.php', ['action'=>'update_event_setting', 'setting_key'=>'movie_location', 'setting_value'=>$invalid]);
+    verify(!$response['success'] && $pdo->query("SELECT setting_value FROM event_settings WHERE setting_key='movie_location'")->fetchColumn() === 'Test Cinema', 'Invalid event text preserves the saved location');
+}
+$response = endpoint('admin.php', ['action'=>'update_event_setting', 'setting_key'=>'unknown_setting', 'setting_value'=>'value']);
+verify(!$response['success'] && !$pdo->query("SELECT setting_value FROM event_settings WHERE setting_key='unknown_setting'")->fetchColumn(), 'Unknown editor settings cannot create arbitrary keys');
+$response = endpoint('admin.php', ['action'=>'update_event_setting', 'setting_key'=>['max_attendees'], 'setting_value'=>'3']);
+verify(!$response['success'], 'Malformed setting keys return a validation error');
+
 echo "PASS: $passed MySQL integration checks\n";

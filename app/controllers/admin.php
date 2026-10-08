@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/services/EmployeeService.php';
+require_once dirname(__DIR__) . '/services/EventSettingsService.php';
 require_once dirname(__DIR__) . '/repositories/MysqlBookingRepository.php';
 
 // Use the dedicated login flow so lockout and CSRF apply consistently.
@@ -33,20 +34,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 exit;
 
             case 'update_event_setting':
-                $setting_key = $_POST['setting_key'] ?? '';
-                if ($setting_key === 'venue_name') $setting_key = 'movie_location';
-                $setting_value = $_POST['setting_value'] ?? '';
-
-                if (empty($setting_key)) {
-                    echo json_encode(['success' => false, 'message' => 'Setting key is required']);
+                try {
+                    $value = (new EventSettingsService($pdo))->update(
+                        $_POST['setting_key'] ?? '', $_POST['setting_value'] ?? ''
+                    );
+                } catch (DomainException $exception) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => $exception->getMessage()]);
                     exit;
                 }
-
-                // Update or insert single setting
-                $stmt = $pdo->prepare("INSERT INTO event_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?");
-                $stmt->execute([$setting_key, $setting_value, $setting_value]);
-
-                echo json_encode(['success' => true, 'message' => 'Setting updated successfully']);
+                echo json_encode(['success' => true, 'message' => 'Setting updated successfully', 'setting_value' => $value]);
                 exit;
 
             case 'add_employee':

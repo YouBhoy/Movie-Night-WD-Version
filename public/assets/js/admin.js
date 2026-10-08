@@ -11,6 +11,12 @@ function saveSetting(settingKey) {
     const input = document.getElementById(settingKey);
     const value = input.value.trim();
 
+    if (settingKey === 'max_attendees' && (!/^[0-9]+$/.test(value) || Number(value) < 1 || Number(value) > 10)) {
+        showToast('Attendee limit must be a whole number between 1 and 10.', 'error');
+        input.focus();
+        return;
+    }
+
     if (value === '') {
         showToast('Please enter a value for ' + settingKey.replace('_', ' '), 'error');
         return;
@@ -29,6 +35,7 @@ function saveSetting(settingKey) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            input.value = data.setting_value;
             showToast(settingKey.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) + ' Saved Successfully', 'success');
         } else {
             showToast('Error saving setting: ' + data.message, 'error');

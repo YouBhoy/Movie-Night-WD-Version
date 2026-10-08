@@ -22,3 +22,5 @@ The in-memory tests alone do not establish concurrency safety; the isolated MySQ
 Seat warning regression checks (Node.js): `node tests/seat-warnings-test.cjs`. These exercise the shared selection engine and the page's confirmation and availability-refresh functions with a minimal DOM fixture. Coverage includes completable partial groups, stranded seats, recommendations, recorded aisle boundaries, remembered approvals, cancelling the last change, and preserving available seats after a conflict.
 
 Admin UI checks: `node tests/admin-ui-test.cjs` covers restoring rows after a no-match search, treating names and queries as text, and initializing the common admin script without obsolete seat controls. The full PowerShell runner also executes both JavaScript suites and recursively lints app, public, and tests.
+
+Event-setting checks exercise the authenticated save endpoint: attendee limits must be whole numbers from 1 to 10; blank/overlong text and malformed or unsupported keys are rejected without changing saved values. UI checks also verify invalid attendee limits are caught before submission.

@@ -45,4 +45,14 @@ vm.createContext(admin);
 vm.runInContext(fs.readFileSync(path.join(__dirname,'../public/assets/js/admin.js'),'utf8'), admin);
 handlers.forEach(callback => callback());
 check(admin.escapeHtml('<img> & "') === '&lt;img&gt; &amp; &quot;');
+const messages = [];
+const limitInput = {value:'', focus(){}};
+admin.document.getElementById = () => limitInput;
+admin.showToast = message => messages.push(message);
+admin.fetch = () => { throw new Error('Invalid attendee limits must not be submitted'); };
+for (const value of ['', '0', '11', '1.5', '1e1']) {
+    limitInput.value = value;
+    admin.saveSetting('max_attendees');
+    check(messages.at(-1) === 'Attendee limit must be a whole number between 1 and 10.');
+}
 console.log('PASS: ' + checks + ' admin UI checks');
